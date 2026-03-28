@@ -17,6 +17,7 @@
   --muted: #888;
   --color-accent: #c8a96e;
   --bw-accent: #a0a0a0;
+  --setup-accent: #7a9e8c;
   --step-num: #333;
   --code-bg: #1a1a1a;
 }
@@ -95,6 +96,11 @@ header p {
 }
 .tab.active-bw::after { background: var(--bw-accent); }
 
+.tab.active-setup {
+  color: var(--setup-accent);
+}
+.tab.active-setup::after { background: var(--setup-accent); }
+
 .tab:hover { color: var(--text); }
 
 .panel { display: none; max-width: 720px; margin: 0 auto; }
@@ -116,6 +122,7 @@ header p {
 
 .step-color .step-num { color: var(--color-accent); }
 .step-bw .step-num { color: var(--bw-accent); }
+.step-setup .step-num { color: var(--setup-accent); }
 
 .step-body {
   background: var(--surface);
@@ -136,6 +143,7 @@ header p {
 
 .step-color .step-title { color: var(--color-accent); }
 .step-bw .step-title { color: var(--bw-accent); }
+.step-setup .step-title { color: var(--setup-accent); }
 
 .step-body ul {
   list-style: none;
@@ -277,6 +285,7 @@ code {
 <div class="tabs">
   <button class="tab active-bw" onclick="switchTab('bw')">Zwart-wit</button>
   <button class="tab" onclick="switchTab('color')">Kleur</button>
+  <button class="tab" onclick="switchTab('setup')">Installatie</button>
 </div>
 
 <!-- KLEUR TAB -->
@@ -486,6 +495,54 @@ for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
 
 </div>
 
+<!-- INSTALLATIE TAB -->
+
+<div class="panel" id="panel-setup">
+
+  <div class="step step-setup">
+    <div class="step-num">01</div>
+    <div class="step-body">
+      <div class="step-title">Homebrew</div>
+      <ul>
+        <li>Check of Homebrew al geïnstalleerd is — open Terminal en typ:</li>
+      </ul>
+      <div class="code-block">brew --version</div>
+      <ul style="margin-top: 14px;">
+        <li>Krijg je een versienummer, sla deze stap dan over. Zo niet, installeer Homebrew:</li>
+      </ul>
+      <div class="code-block">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</div>
+      <div class="note">Na installatie vraagt de installer op een M1 Mac om twee extra commando's om Homebrew aan je PATH toe te voegen. Voer ze uit zoals getoond in de Terminal-output — zonder dit werkt <code>brew</code> niet in een nieuw venster.</div>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">02</div>
+    <div class="step-body">
+      <div class="step-title">ImageMagick installeren</div>
+      <ul>
+        <li>Installeer ImageMagick via Homebrew:</li>
+      </ul>
+      <div class="code-block">brew install imagemagick</div>
+      <div class="note">Dit installeert ook alle benodigde afhankelijkheden. Kan een paar minuten duren.</div>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">03</div>
+    <div class="step-body">
+      <div class="step-title">Verificatie</div>
+      <ul>
+        <li>Controleer of de installatie gelukt is:</li>
+      </ul>
+      <div class="code-block">magick --version</div>
+      <ul style="margin-top: 14px;">
+        <li>Je zou zoiets moeten zien als <code>Version: ImageMagick 7.x.x</code> — dan ben je klaar</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
 <script>
   function switchTab(tab) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -497,8 +554,10 @@ for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
     const tabs = document.querySelectorAll('.tab');
     if (tab === 'bw') {
       tabs[0].classList.add('active-bw');
-    } else {
+    } else if (tab === 'color') {
       tabs[1].classList.add('active-color');
+    } else {
+      tabs[2].classList.add('active-setup');
     }
   }
 </script>
