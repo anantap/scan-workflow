@@ -474,7 +474,13 @@ code {
       </ul>
       <div class="code-block">mkdir bw
 for f in *.jpg; do magick "$f" -colorspace Gray "bw/$f"; done</div>
-      <div class="note">De originelen blijven ongewijzigd. De zwart-wit versies komen in de submap <code>bw/</code>. Vervang <code>*.jpg</code> door <code>*.tif</code> als je TIFF-bestanden hebt.</div>
+      <div class="note">De originelen blijven ongewijzigd. De zwart-wit versies komen in de submap <code>bw/</code>.</div>
+      <ul style="margin-top: 14px;">
+        <li>Wil je vanuit de <strong>DNG-bestanden</strong> werken in plaats van de JPEGs:</li>
+      </ul>
+      <div class="code-block">mkdir bw
+for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
+      <div class="note">DNG wordt hier naar TIFF geëxporteerd — JPEG zou verliesgevend zijn voor een archief-DNG-workflow. De originele DNGs blijven ongewijzigd.</div>
     </div>
   </div>
 
