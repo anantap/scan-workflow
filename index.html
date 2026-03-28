@@ -101,46 +101,26 @@ header p {
 .panel.active { display: block; }
 
 .step {
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  gap: 0 20px;
-  margin-bottom: 4px;
   position: relative;
-}
-
-.step:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  left: 23px;
-  top: 48px;
-  bottom: -4px;
-  width: 1px;
-  background: var(--border);
+  margin-bottom: 4px;
 }
 
 .step-num {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: absolute;
+  top: 18px;
+  right: 20px;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.75rem;
   color: var(--muted);
-  flex-shrink: 0;
-  margin-top: 0;
 }
 
-.step-color .step-num { border-color: var(--color-accent); color: var(--color-accent); }
-.step-bw .step-num { border-color: var(--bw-accent); color: var(--bw-accent); }
+.step-color .step-num { color: var(--color-accent); }
+.step-bw .step-num { color: var(--bw-accent); }
 
 .step-body {
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 16px 20px 18px;
+  padding: 16px 56px 18px 20px;
   margin-bottom: 4px;
 }
 
@@ -254,23 +234,14 @@ code {
     padding: 8px 14px;
   }
 
-  .step {
-    grid-template-columns: 36px 1fr;
-    gap: 0 12px;
-  }
-
-  .step:not(:last-child)::before {
-    left: 17px;
-  }
-
   .step-num {
-    width: 36px;
-    height: 36px;
     font-size: 0.65rem;
+    top: 14px;
+    right: 14px;
   }
 
   .step-body {
-    padding: 12px 14px 14px;
+    padding: 12px 44px 14px 14px;
   }
 
   .step-title {
