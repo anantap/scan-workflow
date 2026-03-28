@@ -317,8 +317,10 @@ code {
       <div class="step-title">Aansluiten</div>
       <ul>
         <li>Gebruik een <strong>korte USB-kabel</strong> — de originele kabel is van lage kwaliteit</li>
-        <li>Scanner aan, VueScan openen</li>
+        <li>Scanner aan — wacht <strong>~5 minuten</strong> voor de eerste scan zodat de lamp stabiliseert</li>
+        <li>VueScan openen</li>
       </ul>
+      <div class="note">De scanner gebruikt een CCFL-lamp die op temperatuur moet komen. Sla je de opwarmtijd over, dan kunnen de eerste scans iets afwijken in belichting.</div>
     </div>
   </div>
 
@@ -343,6 +345,8 @@ code {
       <ul>
         <li><strong>Infrared Clean</strong> → uit (scanner heeft geen infraroodkanaal)</li>
         <li><strong>Restore Fading</strong> → Light bij oud materiaal, anders uit</li>
+        <li><strong>Grain reduction</strong> → Light of Medium bij geduwd of hooggevoelig materiaal (ISO 1600+), anders uit</li>
+        <li><strong>Sharpen</strong> → uit — doe dit achteraf in Lightroom of Capture One</li>
       </ul>
     </div>
   </div>
@@ -357,28 +361,40 @@ code {
         <li><strong>Negative brand</strong> → Generic</li>
         <li><strong>Negative type</strong> → Color Negative</li>
       </ul>
-      <div class="note">
-        <span class="lock-badge badge-tip">tip</span>
-        Lock Exposure: scan eerst een leeg stukje filmrand om de belichting te kalibreren op de oranje filmbase, vergrendel die belichting, scan daarna de rest van de rol. Geeft consistentere kleuren over een hele rol.
-      </div>
     </div>
   </div>
 
   <div class="step step-color">
     <div class="step-num">05</div>
     <div class="step-body">
+      <div class="step-title">Lock Exposure</div>
+      <ul>
+        <li>Leg een leeg stukje <strong>filmrand</strong> (tussen frames of buiten het beeldvlak) in de scanner</li>
+        <li>Doe een preview — VueScan kalibreert de belichting op de oranje filmbase</li>
+        <li>Klik op <strong>Lock Exposure</strong> in de Input tab</li>
+        <li>Verwijder de filmrand, laad het eerste frame en begin met scannen</li>
+      </ul>
+      <div class="note">Zonder vergrendelde belichting herberekent VueScan per frame, wat kleurverschillen tussen opnames van dezelfde rol geeft. Lock Exposure houdt de belichting constant over de hele rol.</div>
+    </div>
+  </div>
+
+  <div class="step step-color">
+    <div class="step-num">06</div>
+    <div class="step-body">
       <div class="step-title">Output tab</div>
       <ul>
         <li><strong>Raw file</strong> → aan</li>
         <li><strong>Raw file type</strong> → DNG</li>
+        <li><strong>Raw compression</strong> → aan (lossless, scheelt schijfruimte)</li>
         <li><strong>JPEG file</strong> → aan</li>
+        <li><strong>JPEG quality</strong> → 95</li>
         <li><strong>JPEG file name</strong> → <code>scan0001+.jpg</code></li>
       </ul>
     </div>
   </div>
 
   <div class="step step-color">
-    <div class="step-num">06</div>
+    <div class="step-num">07</div>
     <div class="step-body">
       <div class="step-title">Scannen</div>
       <ul>
@@ -386,7 +402,7 @@ code {
         <li>Preview checken in VueScan</li>
         <li>Batch scan starten — VueScan loopt automatisch door alle frames</li>
       </ul>
-      <div class="note">Multi-sampling vergroot de scantijd aanzienlijk zonder veel zichtbaar voordeel. Alleen voor kritieke beelden.</div>
+      <div class="note">Multi-sampling: 2× is een goed compromis voor kritieke beelden — vermindert ruis in de schaduwen merkbaar. Hoger dan 4× geeft nauwelijks extra winst maar verdubbelt de scantijd.</div>
     </div>
   </div>
 
@@ -402,8 +418,10 @@ code {
       <div class="step-title">Aansluiten</div>
       <ul>
         <li>Gebruik een <strong>korte USB-kabel</strong> — de originele kabel is van lage kwaliteit</li>
-        <li>Scanner aan, VueScan openen</li>
+        <li>Scanner aan — wacht <strong>~5 minuten</strong> voor de eerste scan zodat de lamp stabiliseert</li>
+        <li>VueScan openen</li>
       </ul>
+      <div class="note">De scanner gebruikt een CCFL-lamp die op temperatuur moet komen. Sla je de opwarmtijd over, dan kunnen de eerste scans iets afwijken in belichting.</div>
     </div>
   </div>
 
@@ -429,6 +447,8 @@ code {
       <ul>
         <li><strong>Infrared Clean</strong> → uit</li>
         <li><strong>Restore Fading</strong> → uit</li>
+        <li><strong>Grain reduction</strong> → Light of Medium bij geduwd of hooggevoelig materiaal (HP5 @ 1600, Delta 3200), anders uit</li>
+        <li><strong>Sharpen</strong> → uit — doe dit achteraf in Lightroom of Capture One</li>
       </ul>
     </div>
   </div>
@@ -450,7 +470,9 @@ code {
       <ul>
         <li><strong>Raw file</strong> → aan</li>
         <li><strong>Raw file type</strong> → DNG</li>
+        <li><strong>Raw compression</strong> → aan (lossless, scheelt schijfruimte)</li>
         <li><strong>JPEG file</strong> → aan</li>
+        <li><strong>JPEG quality</strong> → 95</li>
         <li><strong>JPEG file name</strong> → <code>scan0001+.jpg</code></li>
       </ul>
     </div>
@@ -465,6 +487,7 @@ code {
         <li>Preview checken in VueScan</li>
         <li>Batch scan starten — VueScan loopt automatisch door alle frames</li>
       </ul>
+      <div class="note">Multi-sampling: 2× is een goed compromis voor kritieke beelden — vermindert ruis in de schaduwen merkbaar. Hoger dan 4× geeft nauwelijks extra winst maar verdubbelt de scantijd.</div>
     </div>
   </div>
 
