@@ -102,6 +102,9 @@ header p {
 .tab.active-setup::after { background: var(--setup-accent); }
 
 .tab:hover { color: var(--text); }
+.tab-link { text-decoration: none; margin-left: auto; color: var(--color-accent); }
+.tab { white-space: nowrap; }
+@media (max-width: 480px) { .tab { padding: 8px 9px; letter-spacing: 0.02em; } }
 
 .panel { display: none; max-width: 720px; margin: 0 auto; }
 .panel.active { display: block; }
@@ -286,6 +289,7 @@ code {
   <button class="tab active-bw" onclick="switchTab('bw')">Zwart-wit</button>
   <button class="tab" onclick="switchTab('color')">Kleur</button>
   <button class="tab" onclick="switchTab('setup')">Installatie</button>
+  <a class="tab tab-link" href="/converter">Converter</a>
 </div>
 
 <!-- KLEUR TAB -->
@@ -401,6 +405,20 @@ code {
         <li>Batch scan starten — VueScan loopt automatisch door alle frames</li>
       </ul>
 
+    </div>
+  </div>
+
+  <div class="step step-color">
+    <div class="step-num">09</div>
+    <div class="step-body">
+      <div class="step-title">Omzetten — Negatief Converter <span class="lock-badge badge-optional">optioneel</span></div>
+      <ul>
+        <li>Alternatief voor Negative Lab Pro: open de <a href="/converter" style="color: var(--color-accent)">Converter</a></li>
+        <li>Sleep de <strong>raw DNG's</strong> van de rol erin — niet de JPEGs, die zijn al door VueScan omgezet</li>
+        <li>Kleurbalans → <strong>Hele rol</strong> voor consistente kleur, optioneel <strong>Filmbasis kiezen</strong> op de oranje rand</li>
+        <li>Exporteer als <strong>TIFF 16-bit</strong> voor verdere bewerking in Lightroom of Capture One</li>
+      </ul>
+      <div class="note">Alles draait lokaal in de browser — er wordt niets geüpload.</div>
     </div>
   </div>
 

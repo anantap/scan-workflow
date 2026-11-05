@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Negatief Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #161616;
+  --border: #2a2a2a;
+  --text: #e8e8e8;
+  --muted: #888;
+  --accent: #c8a96e;
+  --code-bg: #1a1a1a;
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 32px 24px 60px;
+}
+
+header {
+  max-width: 1280px;
+  margin: 0 auto 24px;
+  border-left: 3px solid var(--border);
+  padding-left: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+header h1 { font-family: 'IBM Plex Mono', monospace; font-size: 1.3rem; font-weight: 500; margin-bottom: 6px; }
+header p { font-size: 0.8rem; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+header a { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--muted); text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; }
+header a:hover { color: var(--text); }
+
+.app {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.mono { font-family: 'IBM Plex Mono', monospace; }
+
+/* ---------- Viewer ---------- */
+.viewer { min-width: 0; }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+button, .btn, select {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 7px 11px;
+  background: var(--surface);
+  color: #ccc;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  border-radius: 0;
+}
+button:hover:not(:disabled), .btn:hover { border-color: #444; color: var(--text); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.on { border-color: var(--accent); color: var(--accent); }
+button.primary { border-color: #5a4a2e; color: var(--accent); }
+select { padding: 6px 8px; }
+
+.stage {
+  position: relative;
+  background: #0a0a0a;
+  border: 1px solid var(--border);
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.stage canvas { display: block; max-width: 100%; max-height: 72vh; }
+.stage.picking canvas { cursor: crosshair; }
+
+.drop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.drop strong { font-family: 'IBM Plex Mono', monospace; color: var(--text); font-weight: 500; font-size: 0.9rem; }
+.drop small { font-size: 0.75rem; max-width: 420px; line-height: 1.5; }
+.stage.dragover { border-color: var(--accent); }
+
+.hint {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  right: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: rgba(10,10,10,0.85);
+  border: 1px solid #5a4a2e;
+  padding: 7px 10px;
+  display: none;
+}
+.hint.show { display: block; }
+
+.status { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+.strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 0 4px;
+  margin-top: 8px;
+}
+.thumb {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: #0a0a0a;
+  padding: 3px;
+  cursor: pointer;
+  position: relative;
+}
+.thumb canvas { display: block; height: 72px; width: auto; }
+.thumb.active { border-color: var(--accent); }
+.thumb span {
+  position: absolute; left: 3px; bottom: 3px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
+  background: rgba(0,0,0,0.7); color: #aaa; padding: 1px 4px;
+  max-width: calc(100% - 6px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.thumb.add { display: flex; align-items: center; justify-content: center; width: 72px; height: 80px; color: var(--muted); font-size: 1.3rem; }
+
+/* ---------- Sidebar ---------- */
+.side { display: flex; flex-direction: column; gap: 4px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 14px 16px 16px;
+}
+.panel h2 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.row { margin-bottom: 10px; }
+.row:last-child { margin-bottom: 0; }
+.row label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #bbb;
+  margin-bottom: 3px;
+  cursor: default;
+  user-select: none;
+}
+.row label output { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 18px; background: transparent; cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #333; }
+input[type=range]::-moz-range-track { height: 2px; background: #333; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; margin-top: -5px; background: #ccc; border: none; border-radius: 50%;
+}
+input[type=range]::-moz-range-thumb { width: 12px; height: 12px; background: #ccc; border: none; border-radius: 50%; }
+input[type=range]:disabled { opacity: 0.4; }
+
+.row label.check { justify-content: flex-start; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #bbb; cursor: pointer; }
+.check input { accent-color: var(--accent); }
+
+.btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.btns button { flex: 1 1 auto; }
+
+.small { font-size: 0.72rem; color: var(--muted); line-height: 1.5; margin-top: 8px; }
+.small code { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; background: var(--code-bg); border: 1px solid var(--border); padding: 0 4px; }
+
+.progress { height: 2px; background: #222; margin-top: 10px; display: none; }
+.progress.show { display: block; }
+.progress div { height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+
+details.help { margin-top: 4px; }
+details.help summary { cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; color: #aaa; line-height: 1.55; display: flex; flex-direction: column; gap: 5px; }
+
+@media (max-width: 860px) {
+  body { padding: 20px 14px 50px; }
+  .app { grid-template-columns: 1fr; }
+  .stage { min-height: 260px; }
+  .stage canvas { max-height: 60vh; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Negatief Converter</h1>
+    <p>DNG / TIFF / JPEG · alles lokaal in je browser — niets wordt geüpload</p>
+  </div>
+  <a href="/">← Scanworkflow</a>
+</header>
+
+<div class="app">
+
+  <div class="viewer">
+    <div class="toolbar">
+      <button id="bRotL" title="Linksom draaien">⟲</button>
+      <button id="bRotR" title="Rechtsom draaien">⟳</button>
+      <button id="bFlip" title="Horizontaal spiegelen">⇋ Spiegel</button>
+      <button id="bNeg" title="Ingedrukt houden of klikken: ruw negatief tonen">Negatief</button>
+      <button id="bBase" title="Klik daarna op een onbelicht stukje filmrand">Filmbasis kiezen</button>
+      <button id="bNeutral" title="Klik daarna op iets dat grijs of wit hoort te zijn">Neutraal kiezen</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="view"></canvas>
+      <div class="drop" id="drop">
+        <strong>Sleep scans hierheen of klik om te kiezen</strong>
+        <small>Gebruik de <b>raw DNG</b> (of raw TIFF) uit VueScan — dat is het onbewerkte negatief. De JPEG van VueScan is al omgezet.</small>
+      </div>
+      <div class="hint" id="hint"></div>
+    </div>
+
+    <div class="strip" id="strip"></div>
+  </div>
+
+  <div class="side">
+
+    <div class="panel">
+      <h2>Analyse</h2>
+      <div class="row">
+        <label for="mode">Kleurbalans</label>
+        <select id="mode" style="width:100%">
+          <option value="frame">Per frame</option>
+          <option value="roll">Hele rol (consistent)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Rand negeren <output id="o-border"></output></label>
+        <input type="range" id="border" min="0" max="25" step="1" value="8">
+      </div>
+      <div class="small" id="baseInfo">Filmbasis: automatisch</div>
+    </div>
+
+    <div class="panel">
+      <h2>Toon</h2>
+      <div class="row"><label>Belichting <output></output></label><input type="range" data-k="exposure" min="-100" max="100" value="0"></div>
+      <div class="row"><label>Contrast <output></output></label><input type="range" data-k="contrast" min="0" max="100" value="30"></div>
+      <div class="row"><label>Middentonen <output></output></label><input type="range" data-k="mid" min="-100" max="100" value="0"></div>
+      <div class="row"><label>Zwartpunt <output></output></label><input type="range" data-k="black" min="-50" max="50" value="0"></div>
+      <div class="row"><label>Witpunt <output></output></label><input type="range" data-k="white" min="-50" max="50" value="0"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Kleur</h2>
+      <div class="row"><label>Temperatuur <output></output></label><input type="range" data-k="temp" min="-100" max="100" value="0"></div>
+      <div class="row"><label>Tint <output></output></label><input type="range" data-k="tint" min="-100" max="100" value="0"></div>
+      <div class="row"><label>Verzadiging <output></output></label><input type="range" data-k="sat" min="0" max="200" value="100"></div>
+      <div class="row"><label class="check"><input type="checkbox" id="bw"> Zwart-wit</label></div>
+    </div>
+
+    <div class="panel">
+      <h2>Frame</h2>
+      <div class="btns">
+        <button id="bReset">Reset frame</button>
+        <button id="bCopy">Kopieer naar alle</button>
+        <button id="bRemove">Verwijder</button>
+      </div>
+      <div class="small">Dubbelklik op een schuif om die te resetten. ← / → wisselt van frame.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Export</h2>
+      <div class="row">
+        <select id="fmt" style="width:100%">
+          <option value="tif">TIFF 16-bit (archief / Lightroom)</option>
+          <option value="jpg">JPEG kwaliteit 95</option>
+        </select>
+      </div>
+      <div class="btns">
+        <button id="bExport" class="primary">Exporteer frame</button>
+        <button id="bExportAll" class="primary">Exporteer alles</button>
+      </div>
+      <div class="progress" id="prog"><div></div></div>
+      <div class="small">Volledige resolutie. Bestandsnaam: <code>naam_pos.tif</code>. In Chrome kies je één map voor alles; in Safari komen de bestanden in Downloads.</div>
+    </div>
+
+    <details class="help panel">
+      <summary>Werkwijze</summary>
+      <ul>
+        <li>VueScan: Output → <b>Raw file</b> aan, type DNG. Die raw is het onbewerkte negatief.</li>
+        <li>Sleep alle DNG's van een rol hierheen.</li>
+        <li><b>Rand negeren</b> zo instellen dat de houder en filmrand buiten de analyse vallen.</li>
+        <li>Optioneel: <b>Filmbasis kiezen</b> en klik op het oranje stuk film tussen twee frames — geeft de zuiverste schaduwen.</li>
+        <li>Kleurzweem? <b>Neutraal kiezen</b> en klik op iets grijs/wits, of gebruik Temperatuur en Tint.</li>
+        <li><b>Hele rol</b> analyseert alle frames samen — dezelfde kleur over de rol, zoals bij Lock Exposure.</li>
+        <li>Zwart-wit negatieven: zet <b>Zwart-wit</b> aan.</li>
+      </ul>
+    </details>
+
+  </div>
+</div>
+
+<input type="file" id="file" multiple accept=".dng,.tif,.tiff,.jpg,.jpeg,.png,image/*" hidden>
+
+<script src="vendor/pako_inflate.min.js"></script>
+<script src="vendor/utif.js"></script>
+<script src="converter-core.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const PREVIEW_EDGE = 1600, THUMB_EDGE = 220;
+  const $ = (id) => document.getElementById(id);
+  const view = $('view'), vctx = view.getContext('2d');
+  const stage = $('stage');
+
+  const state = {
+    frames: [],     // {id, name, file, preview, thumb, hist, s, thumbCanvas}
+    cur: -1,
+    mode: 'frame',
+    border: 0.08,
+    pick: null,     // 'base' | 'neutral'
+    showNeg: false,
+    busy: false,
+  };
+  let rollHist = null;
+
+  // ---------- Bestanden laden ----------
+
+  async function decodeFile(file) {
+    const name = file.name.toLowerCase();
+    if (/\.(dng|tiff?)$/.test(name)) {
+      const buf = await file.arrayBuffer();
+      return NC.decodeTIFF(buf, UTIF);
+    }
+    const bmp = await createImageBitmap(file);
+    const c = document.createElement('canvas');
+    c.width = bmp.width; c.height = bmp.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(bmp, 0, 0);
+    const id = ctx.getImageData(0, 0, c.width, c.height);
+    return NC.fromRGBA8(id.data, c.width, c.height);
+  }
+
+  async function addFiles(files) {
+    files = Array.from(files).filter((f) => /\.(dng|tiff?|jpe?g|png)$/i.test(f.name))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    if (!files.length) return;
+    $('drop').style.display = 'none';
+    for (let i = 0; i < files.length; i++) {
+      setStatus(`Laden ${i + 1}/${files.length}: ${files[i].name}`);
+      await tick();
+      try {
+        const full = await decodeFile(files[i]);
+        const preview = NC.downscale(full, PREVIEW_EDGE);
+        const fr = {
+          id: Math.random().toString(36).slice(2),
+          name: files[i].name,
+          file: files[i],
+          fullSize: [full.w, full.h],
+          preview,
+          thumb: NC.downscale(preview, THUMB_EDGE),
+          hist: NC.histogram(preview, state.border),
+          s: NC.defaults(),
+        };
+        state.frames.push(fr);
+        makeThumb(fr);
+        rollHist = null;
+        if (state.cur < 0) select(0);
+      } catch (e) {
+        console.error(e);
+        alert(`${files[i].name} kon niet worden gelezen:\n${e.message}`);
+      }
+    }
+    if (!state.frames.length) $('drop').style.display = '';
+    if (state.mode === 'roll') refreshAll();
+    setStatus(frameStatus());
+    updateButtons();
+  }
+
+  // ---------- Analyse & render ----------
+
+  function analysis(fr) {
+    let H = fr.hist;
+    if (state.mode === 'roll') {
+      if (!rollHist) rollHist = NC.mergeHistograms(state.frames.map((f) => f.hist));
+      H = rollHist;
+    }
+    return NC.analyze(H, fr.s.base);
+  }
+
+  function params(fr) { return NC.buildParams(analysis(fr), fr.s); }
+
+  function renderTo(canvas, img, fr, P, neg) {
+    const rgba = new Uint8ClampedArray(img.w * img.h * 4);
+    NC.render(img, P, rgba, 8, neg);
+    const t = NC.transform(rgba, img.w, img.h, 4, fr.s.rot, fr.s.flip);
+    canvas.width = t.w; canvas.height = t.h;
+    canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(t.buf.buffer), t.w, t.h), 0, 0);
+  }
+
+  let raf = 0, thumbTimer = 0;
+  function draw() {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const fr = state.frames[state.cur];
+      if (!fr) { view.width = view.height = 0; return; }
+      const P = params(fr);
+      renderTo(view, fr.preview, fr, P, state.showNeg);
+      clearTimeout(thumbTimer);
+      thumbTimer = setTimeout(() => makeThumb(fr, P), 150);
+    });
+  }
+
+  function makeThumb(fr, P) {
+    if (!fr.thumbCanvas) {
+      const el = document.createElement('div');
+      el.className = 'thumb';
+      el.innerHTML = '<canvas></canvas><span></span>';
+      el.querySelector('span').textContent = fr.name;
+      el.onclick = () => select(state.frames.indexOf(fr));
+      $('strip').insertBefore(el, addTile);
+      fr.thumbEl = el;
+      fr.thumbCanvas = el.querySelector('canvas');
+    }
+    renderTo(fr.thumbCanvas, fr.thumb, fr, P || params(fr), false);
+  }
+
+  function refreshAll() {
+    rollHist = null;
+    state.frames.forEach((f) => makeThumb(f));
+    draw();
+  }
+
+  // ---------- Selectie & UI-sync ----------
+
+  function select(i) {
+    if (i < 0 || i >= state.frames.length) return;
+    state.cur = i;
+    state.frames.forEach((f, k) => f.thumbEl && f.thumbEl.classList.toggle('active', k === i));
+    const el = state.frames[i].thumbEl;
+    if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    syncControls();
+    setPick(null);
+    draw();
+    setStatus(frameStatus());
+  }
+
+  function frameStatus() {
+    const fr = state.frames[state.cur];
+    if (!fr) return '';
+    return `${state.cur + 1}/${state.frames.length} · ${fr.name} · ${fr.fullSize[0]}×${fr.fullSize[1]}`;
+  }
+
+  const sliders = Array.from(document.querySelectorAll('input[data-k]'));
+  function fmtVal(k, v) {
+    if (k === 'sat') return v + '%';
+    return (v > 0 ? '+' : '') + v;
+  }
+
+  function syncControls() {
+    const fr = state.frames[state.cur];
+    const s = fr ? fr.s : NC.defaults();
+    sliders.forEach((el) => {
+      el.value = s[el.dataset.k];
+      el.parentElement.querySelector('output').textContent = fmtVal(el.dataset.k, s[el.dataset.k]);
+    });
+    $('bw').checked = s.bw;
+    $('bFlip').classList.toggle('on', !!s.flip);
+    $('baseInfo').textContent = s.base
+      ? `Filmbasis: gekozen (D ${s.base.map((d) => d.toFixed(2)).join(' / ')})`
+      : 'Filmbasis: automatisch';
+    if (s.base) {
+      const a = document.createElement('a');
+      a.href = '#'; a.textContent = ' · wissen'; a.style.color = 'var(--muted)';
+      a.onclick = (e) => { e.preventDefault(); applyToTargets((x) => { x.base = null; }); };
+      $('baseInfo').appendChild(a);
+    }
+  }
+
+  function updateButtons() {
+    const has = state.frames.length > 0;
+    ['bRotL', 'bRotR', 'bFlip', 'bNeg', 'bBase', 'bNeutral', 'bReset', 'bCopy', 'bRemove', 'bExport', 'bExportAll']
+      .forEach((id) => { $(id).disabled = !has || state.busy; });
+    sliders.forEach((el) => { el.disabled = !has; });
+  }
+
+  // In rolmodus gelden filmbasis en neutraal voor alle frames
+  function applyToTargets(fn) {
+    const fr = state.frames[state.cur];
+    if (!fr) return;
+    if (state.mode === 'roll') state.frames.forEach((f) => fn(f.s));
+    else fn(fr.s);
+    syncControls();
+    if (state.mode === 'roll') refreshAll(); else draw();
+  }
+
+  sliders.forEach((el) => {
+    const k = el.dataset.k;
+    el.addEventListener('input', () => {
+      const fr = state.frames[state.cur];
+      if (!fr) return;
+      fr.s[k] = +el.value;
+      el.parentElement.querySelector('output').textContent = fmtVal(k, fr.s[k]);
+      draw();
+    });
+    el.addEventListener('dblclick', () => {
+      el.value = NC.defaults()[k];
+      el.dispatchEvent(new Event('input'));
+    });
+  });
+  $('bw').addEventListener('change', () => {
+    const fr = state.frames[state.cur];
+    if (fr) { fr.s.bw = $('bw').checked; draw(); }
+  });
+
+  $('border').addEventListener('input', () => {
+    state.border = $('border').value / 100;
+    $('o-border').textContent = $('border').value + '%';
+    state.frames.forEach((f) => { f.hist = NC.histogram(f.preview, state.border); });
+    refreshAll();
+  });
+  $('o-border').textContent = $('border').value + '%';
+
+  $('mode').addEventListener('change', () => {
+    state.mode = $('mode').value;
+    refreshAll();
+  });
+
+  // ---------- Toolbar ----------
+
+  function rotate(d) {
+    const fr = state.frames[state.cur];
+    if (!fr) return;
+    fr.s.rot = (fr.s.rot + d + 360) % 360;
+    draw();
+  }
+  $('bRotL').onclick = () => rotate(-90);
+  $('bRotR').onclick = () => rotate(90);
+  $('bFlip').onclick = () => {
+    const fr = state.frames[state.cur];
+    if (!fr) return;
+    fr.s.flip = !fr.s.flip;
+    syncControls(); draw();
+  };
+
+  $('bNeg').onclick = () => {
+    state.showNeg = !state.showNeg;
+    $('bNeg').classList.toggle('on', state.showNeg);
+    draw();
+  };
+
+  function setPick(p) {
+    state.pick = state.pick === p ? null : p;
+    $('bBase').classList.toggle('on', state.pick === 'base');
+    $('bNeutral').classList.toggle('on', state.pick === 'neutral');
+    stage.classList.toggle('picking', !!state.pick);
+    const hint = $('hint');
+    hint.classList.toggle('show', !!state.pick);
+    if (state.pick === 'base') hint.textContent = 'Klik op onbelichte filmrand (oranje, tussen of naast de frames). Esc = annuleren.';
+    if (state.pick === 'neutral') hint.textContent = 'Klik op iets dat neutraal grijs of wit hoort te zijn. Esc = annuleren.';
+  }
+  $('bBase').onclick = () => setPick('base');
+  $('bNeutral').onclick = () => setPick('neutral');
+
+  view.addEventListener('click', (e) => {
+    const fr = state.frames[state.cur];
+    if (!fr || !state.pick) return;
+    const r = view.getBoundingClientRect();
+    const xd = Math.floor((e.clientX - r.left) / r.width * view.width);
+    const yd = Math.floor((e.clientY - r.top) / r.height * view.height);
+    const [sx, sy] = NC.destToSrc(xd, yd, fr.preview.w, fr.preview.h, fr.s.rot, fr.s.flip);
+    const rad = Math.max(2, Math.round(Math.min(fr.preview.w, fr.preview.h) / 200));
+    const D = NC.sampleDensity(fr.preview, sx, sy, rad);
+
+    if (state.pick === 'base') {
+      applyToTargets((s) => { s.base = D; });
+    } else {
+      // n-waarden zonder bestaande correctie; zet wb zodat ze gelijk worden
+      const n = NC.normalized(analysis(fr), D);
+      const m = (n[0] + n[1] + n[2]) / 3;
+      applyToTargets((s) => { s.wb = n.map((v) => m - v); s.temp = 0; s.tint = 0; });
+    }
+    setPick(null);
+  });
+
+  // ---------- Frame-acties ----------
+
+  $('bReset').onclick = () => {
+    const fr = state.frames[state.cur];
+    if (!fr) return;
+    const { rot, flip } = fr.s;
+    fr.s = Object.assign(NC.defaults(), { rot, flip });
+    syncControls(); draw();
+  };
+
+  $('bCopy').onclick = () => {
+    const fr = state.frames[state.cur];
+    if (!fr) return;
+    state.frames.forEach((f) => {
+      if (f === fr) return;
+      const { rot, flip } = f.s;
+      f.s = Object.assign(JSON.parse(JSON.stringify(fr.s)), { rot, flip });
+    });
+    refreshAll();
+    setStatus('Instellingen gekopieerd naar alle frames');
+  };
+
+  $('bRemove').onclick = () => {
+    const fr = state.frames[state.cur];
+    if (!fr) return;
+    fr.thumbEl.remove();
+    state.frames.splice(state.cur, 1);
+    rollHist = null;
+    if (!state.frames.length) {
+      state.cur = -1;
+      $('drop').style.display = '';
+      view.width = view.height = 0;
+      syncControls(); updateButtons(); setStatus('');
+      return;
+    }
+    select(Math.min(state.cur, state.frames.length - 1));
+    if (state.mode === 'roll') refreshAll();
+  };
+
+  // ---------- Export ----------
+
+  function outName(fr, ext) { return fr.name.replace(/\.[^.]+$/, '') + '_pos.' + ext; }
+
+  async function encodeFrame(fr, fmt) {
+    const full = await decodeFile(fr.file);
+    await tick();
+    const P = params(fr); // analyse komt van de preview; dat is representatief
+    if (fmt === 'tif') {
+      const rgb = new Uint16Array(full.w * full.h * 3);
+      NC.render(full, P, rgb, 16, false);
+      full.data = null;
+      const t = NC.transform(rgb, full.w, full.h, 3, fr.s.rot, fr.s.flip);
+      return new Blob([NC.encodeTIFF16(t.buf, t.w, t.h)], { type: 'image/tiff' });
+    }
+    const rgba = new Uint8ClampedArray(full.w * full.h * 4);
+    NC.render(full, P, rgba, 8, false);
+    full.data = null;
+    const t = NC.transform(rgba, full.w, full.h, 4, fr.s.rot, fr.s.flip);
+    const c = document.createElement('canvas');
+    c.width = t.w; c.height = t.h;
+    c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(t.buf.buffer), t.w, t.h), 0, 0);
+    return await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.95));
+  }
+
+  function download(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+
+  async function exportFrames(list) {
+    const fmt = $('fmt').value;
+    let dir = null;
+    if (list.length > 1 && window.showDirectoryPicker) {
+      try { dir = await window.showDirectoryPicker({ mode: 'readwrite' }); }
+      catch (e) { if (e.name === 'AbortError') return; }
+    }
+    state.busy = true; updateButtons();
+    const prog = $('prog');
+    prog.classList.add('show');
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const fr = list[i];
+        setStatus(`Exporteren ${i + 1}/${list.length}: ${fr.name}`);
+        prog.firstElementChild.style.width = (i / list.length * 100) + '%';
+        await tick();
+        const blob = await encodeFrame(fr, fmt);
+        const name = outName(fr, fmt);
+        if (dir) {
+          const fh = await dir.getFileHandle(name, { create: true });
+          const w = await fh.createWritable();
+          await w.write(blob); await w.close();
+        } else {
+          download(blob, name);
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+      prog.firstElementChild.style.width = '100%';
+      setStatus(`${list.length} bestand${list.length > 1 ? 'en' : ''} geëxporteerd`);
+    } catch (e) {
+      console.error(e);
+      alert('Export mislukt: ' + e.message);
+      setStatus('Export mislukt');
+    } finally {
+      state.busy = false; updateButtons();
+      setTimeout(() => prog.classList.remove('show'), 1500);
+    }
+  }
+
+  $('bExport').onclick = () => state.frames[state.cur] && exportFrames([state.frames[state.cur]]);
+  $('bExportAll').onclick = () => state.frames.length && exportFrames(state.frames.slice());
+
+  // ---------- Invoer ----------
+
+  const addTile = document.createElement('div');
+  addTile.className = 'thumb add';
+  addTile.textContent = '+';
+  addTile.title = 'Scans toevoegen';
+  addTile.onclick = () => $('file').click();
+  $('strip').appendChild(addTile);
+
+  $('drop').onclick = () => $('file').click();
+  $('file').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
+
+  ['dragenter', 'dragover'].forEach((t) => document.addEventListener(t, (e) => {
+    e.preventDefault(); stage.classList.add('dragover');
+  }));
+  ['dragleave', 'drop'].forEach((t) => document.addEventListener(t, (e) => {
+    e.preventDefault(); if (t === 'drop' || e.target === document.documentElement) stage.classList.remove('dragover');
+  }));
+  document.addEventListener('drop', (e) => {
+    stage.classList.remove('dragover');
+    if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'SELECT') return;
+    if (e.key === 'Escape') setPick(null);
+    if (e.key === 'ArrowRight' && e.target.type !== 'range') select(state.cur + 1);
+    if (e.key === 'ArrowLeft' && e.target.type !== 'range') select(state.cur - 1);
+  });
+
+  function setStatus(t) { $('status').textContent = t; }
+  function tick() { return new Promise((r) => setTimeout(r, 0)); }
+
+  syncControls();
+  updateButtons();
+
+  // Voor tests
+  window.__nc = { state, addFiles };
+})();
+</script>
+
+</body>
+</html>
