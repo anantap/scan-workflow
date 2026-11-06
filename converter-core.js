@@ -233,6 +233,7 @@
       tint: 0,       // -100..100
       sat: 100,      // 0..200
       bw: false,
+      positive: false, // bron is al positief: niet omkeren
       base: null,    // [D_r, D_g, D_b] van gekozen filmbasis
       wb: [0, 0, 0], // correctie uit neutraal-kiezer (in n-eenheden)
       rot: 0,        // 0, 90, 180, 270 (rechtsom)
@@ -250,7 +251,9 @@
       s.exposure * 0.003 + s.wb[1] - s.tint * T,
       s.exposure * 0.003 + s.wb[2] - s.temp * T,
     ];
-    const scale = [0, 1, 2].map((c) => 1 / (an.hi[c] - an.lo[c]));
+    // Positief bestand: lichte pixels (lage dichtheid) worden hooglichten
+    const scale = [0, 1, 2].map((c) => (s.positive ? -1 : 1) / (an.hi[c] - an.lo[c]));
+    const lo = s.positive ? an.hi : an.lo;
 
     // Papiercurve: n (log-belichting, 0..1) → lineair licht over ~2 log-eenheden
     // (zoals een afdruk), dan sRGB, dan een S-curve voor contrast en gamma.
@@ -271,7 +274,7 @@
       y = y <= 0 ? 0 : y >= 1 ? 1 : Math.pow(y, 1 / g);
       curve[i] = y;
     }
-    return { lo: an.lo, scale, off, curve, sat: s.sat / 100, bw: s.bw };
+    return { lo, scale, off, curve, sat: s.sat / 100, bw: s.bw };
   };
 
   /**
@@ -321,8 +324,19 @@
   };
 
   /** n-waarden (zonder wb/temp/tint) bij een dichtheid — voor de neutraal-kiezer */
-  NC.normalized = function (an, D) {
-    return [0, 1, 2].map((c) => (D[c] - an.lo[c]) / (an.hi[c] - an.lo[c]));
+  NC.normalized = function (an, D, positive) {
+    return [0, 1, 2].map((c) => positive
+      ? (an.hi[c] - D[c]) / (an.hi[c] - an.lo[c])
+      : (D[c] - an.lo[c]) / (an.hi[c] - an.lo[c]));
+  };
+
+  /**
+   * Sterkte van het oranje masker: verschil in dichtheid tussen blauw en rood
+   * in de dunste delen. Kleurnegatief ≈ 0.4–0.8; positief of z/w-negatief ≈ 0.
+   */
+  NC.maskStrength = function (H) {
+    const an = NC.analyze(H, null);
+    return an.lo[2] - an.lo[0];
   };
 
   // ---------- Oriëntatie ----------

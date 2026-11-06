@@ -134,6 +134,7 @@ select { padding: 6px 8px; }
 .hint.show { display: block; }
 
 .status.err { color: var(--error); }
+.small.warn { color: var(--error); margin-top: 6px; }
 .status { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 .strip {
@@ -271,6 +272,14 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     <div class="panel">
       <h2>Analyse</h2>
       <div class="row">
+        <label for="source">Bron</label>
+        <select id="source" style="width:100%">
+          <option value="neg">Negatief (omkeren)</option>
+          <option value="pos">Al positief (niet omkeren)</option>
+        </select>
+        <div class="small warn" id="maskInfo" hidden></div>
+      </div>
+      <div class="row">
         <label for="mode">Kleurbalans</label>
         <select id="mode" style="width:100%">
           <option value="frame">Per frame</option>
@@ -406,6 +415,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
           hist: NC.histogram(preview, state.border),
           s: NC.defaults(),
         };
+        fr.mask = NC.maskStrength(fr.hist);
         state.frames.push(fr);
         makeThumb(fr);
         rollHist = null;
@@ -430,7 +440,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
       if (!rollHist) rollHist = NC.mergeHistograms(state.frames.map((f) => f.hist));
       H = rollHist;
     }
-    return NC.analyze(H, fr.s.base);
+    return NC.analyze(H, fr.s.positive ? null : fr.s.base);
   }
 
   function params(fr) { return NC.buildParams(analysis(fr), fr.s); }
@@ -510,6 +520,11 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
       el.parentElement.querySelector('output').textContent = fmtVal(el.dataset.k, s[el.dataset.k]);
     });
     $('bw').checked = s.bw;
+    $('source').value = s.positive ? 'pos' : 'neg';
+    const mi = $('maskInfo');
+    mi.hidden = !(fr && !s.positive && fr.mask < 0.15);
+    mi.textContent = 'Geen oranje masker gevonden. Ziet het resultaat eruit als een negatief? Dan is dit bestand al positief: kies "Al positief". (Zwart-wit negatieven hebben ook geen masker.)';
+    $('bBase').disabled = !fr || s.positive || state.busy;
     $('bFlip').classList.toggle('on', !!s.flip);
     $('baseInfo').textContent = s.base
       ? `Filmbasis: gekozen (D ${s.base.map((d) => d.toFixed(2)).join(' / ')})`
@@ -526,6 +541,8 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     const has = state.frames.length > 0;
     ['bRotL', 'bRotR', 'bFlip', 'bNeg', 'bBase', 'bNeutral', 'bReset', 'bCopy', 'bRemove', 'bExport', 'bExportAll']
       .forEach((id) => { $(id).disabled = !has || state.busy; });
+    const cur = state.frames[state.cur];
+    if (cur && cur.s.positive) $('bBase').disabled = true;
     sliders.forEach((el) => { el.disabled = !has; });
   }
 
@@ -556,6 +573,10 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
   $('bw').addEventListener('change', () => {
     const fr = state.frames[state.cur];
     if (fr) { fr.s.bw = $('bw').checked; draw(); }
+  });
+  $('source').addEventListener('change', () => {
+    const v = $('source').value === 'pos';
+    applyToTargets((x) => { x.positive = v; x.wb = [0, 0, 0]; });
   });
 
   $('border').addEventListener('input', () => {
@@ -621,7 +642,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
       applyToTargets((s) => { s.base = D; });
     } else {
       // n-waarden zonder bestaande correctie; zet wb zodat ze gelijk worden
-      const n = NC.normalized(analysis(fr), D);
+      const n = NC.normalized(analysis(fr), D, fr.s.positive);
       const m = (n[0] + n[1] + n[2]) / 3;
       applyToTargets((s) => { s.wb = n.map((v) => m - v); s.temp = 0; s.tint = 0; });
     }
