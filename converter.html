@@ -2,103 +2,193 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Negatief Converter</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+/*
+ * Layout: de foto vult het hoofdvlak en blijft altijd in beeld; alleen de
+ * kolom met glazen kaarten rechts scrolt. Op telefoon plakt de foto bovenaan
+ * en staan de kaarten in tabbladen eronder. Zelfde taal als het CPC-trainings-
+ * plan (Geist, Geist Pixel, glas op mist, oranje), maar dan donker.
+ */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+  src: url("/fonts/geist-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist Pixel";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/geist-pixel-latin.woff2") format("woff2");
+}
 :root {
-  --bg: #0f0f0f;
-  --surface: #161616;
-  --border: #2a2a2a;
-  --text: #e8e8e8;
-  --muted: #888;
-  --accent: #c8a96e;
-  --code-bg: #1a1a1a;
-  --error: #d9826b;
   color-scheme: dark;
+  --bg: #121211;
+  --surround: #191918;          /* rond de foto: neutraal, niet zwart */
+  --surface: rgba(52, 50, 46, 0.5);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --fill: rgba(92, 88, 80, 0.55);
+  --fill-on: rgba(239, 125, 60, 0.42);
+  --text: #ecebe6;
+  --text-dim: #8f8c84;
+  --text-faint: #5c5a54;
+  --accent: #ef7d3c;
+  --accent-text: #f39a63;
+  --on-accent: #ffffff;
+  --line: rgba(255, 255, 255, 0.08);
+  --error: #f39a7f;
+
+  --fs-s: 12px;
+  --fs-m: 16px;
+  --fs-l: 24px;
+  --lh-s: 16px;
+  --lh-m: 24px;
+  --lh-l: 32px;
+
+  --f-ui: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --f-px: "Geist Pixel", "Geist", ui-monospace, monospace;
+  --side-w: 360px;
 }
 
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+html { background: var(--bg); }
 body {
-  font-family: 'IBM Plex Sans', sans-serif;
-  background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
-  padding-block: 32px 60px;
-  padding-left: max(24px, env(safe-area-inset-left, 0px));
-  padding-right: max(24px, env(safe-area-inset-right, 0px));
+  font-family: var(--f-ui);
+  font-size: var(--fs-m);
+  line-height: var(--lh-m);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  background: transparent;
+}
+/* Eén gewicht overal; nadruk komt van kleur en grootte. */
+b, strong { font-weight: 400; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* Mist achter alles: koel leisteen linksboven, gloeiend oranje rechts, olijf onder. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(90% 55% at 10% 0%, #1f2428 0%, rgba(31, 36, 40, 0) 70%),
+    radial-gradient(70% 45% at 100% 55%, #2b1e16 0%, rgba(43, 30, 22, 0) 70%),
+    radial-gradient(90% 50% at 0% 100%, #1d1f19 0%, rgba(29, 31, 25, 0) 70%),
+    var(--bg);
 }
 
-header {
-  max-width: 1280px;
-  margin: 0 auto 24px;
-  border-left: 3px solid var(--border);
-  padding-left: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-header h1 { font-family: 'IBM Plex Mono', monospace; font-size: 1.3rem; font-weight: 500; margin-bottom: 6px; }
-header p { font-size: 0.8rem; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
-header a { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--muted); text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; }
-header a:hover { color: var(--text); }
+.px { font-family: var(--f-px); font-weight: 400; letter-spacing: 0; }
+.tnum { font-variant-numeric: tabular-nums; }
 
+/* ---------- App-raster ---------- */
 .app {
-  max-width: 1280px;
-  margin: 0 auto;
+  height: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) var(--side-w);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: "stage side" "strip side";
 }
 
-.mono { font-family: 'IBM Plex Mono', monospace; }
-
-/* ---------- Viewer ---------- */
-.viewer { min-width: 0; }
-
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 8px;
-  align-items: center;
-}
-
-button, .btn, select {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  padding: 7px 11px;
-  background: var(--surface);
-  color: #ccc;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  border-radius: 0;
-}
-button:hover:not(:disabled), .btn:hover { border-color: #444; color: var(--text); }
-button:disabled { opacity: 0.4; cursor: default; }
-button.on { border-color: var(--accent); color: var(--accent); }
-button.primary { border-color: #5a4a2e; color: var(--accent); }
-select { padding: 6px 8px; }
-
+/* ---------- Foto ---------- */
 .stage {
+  grid-area: stage;
   position: relative;
-  background: #0a0a0a;
-  border: 1px solid var(--border);
-  min-height: 420px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 8px 0 0 max(8px, env(safe-area-inset-left, 0px));
+  border-radius: 24px;
+  background: var(--surround);
+  overflow: hidden;
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 16px 16px 0;
+}
+.tools .grow { flex: 1; }
+.canvas-wrap {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  padding: 16px 24px 24px;
 }
-.stage canvas { display: block; max-width: 100%; max-height: 72vh; }
+.canvas-wrap canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
 .stage.picking canvas { cursor: crosshair; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-m);
+  line-height: var(--lh-m);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+.chip:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.chip:disabled { opacity: 0.4; cursor: default; }
+.chip.on, .chip.on:hover:not(:disabled) { background: var(--text); color: var(--bg); }
+.chip.primary { background: var(--accent); color: var(--on-accent); }
+.chip.primary:hover:not(:disabled) { background: #f28b4f; }
+.chip.icon { width: 40px; padding: 0; }
+.chip svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.badge {
+  position: absolute;
+  left: 50%;
+  top: 72px;
+  transform: translateX(-50%);
+  font-size: var(--fs-s);
+  line-height: var(--lh-s);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  pointer-events: none;
+}
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  font-size: var(--fs-m);
+  line-height: var(--lh-m);
+  background: rgba(30, 29, 27, 0.9);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  color: var(--text);
+  padding: 12px 20px;
+  border-radius: 999px;
+}
+.hint b { color: var(--accent-text); }
 
 .drop {
   position: absolute;
@@ -107,249 +197,435 @@ select { padding: 6px 8px; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 4px;
   text-align: center;
   padding: 24px;
-  color: var(--muted);
-  font-size: 0.85rem;
   cursor: pointer;
+  background: var(--surround);
+  color: var(--text-dim);
+  font-size: var(--fs-l);
+  line-height: var(--lh-l);
 }
-.drop strong { font-family: 'IBM Plex Mono', monospace; color: var(--text); font-weight: 500; font-size: 0.9rem; }
-.drop small { font-size: 0.75rem; max-width: 420px; line-height: 1.5; }
-.stage.dragover { border-color: var(--accent); }
-
-.hint {
+.drop strong { color: var(--text); }
+.stage.dragover::after {
+  content: "Loslaten om toe te voegen";
   position: absolute;
-  left: 10px;
-  bottom: 10px;
-  right: 10px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--accent);
-  background: rgba(10,10,10,0.85);
-  border: 1px solid #5a4a2e;
-  padding: 7px 10px;
-  display: none;
+  inset: 8px;
+  border-radius: 20px;
+  border: 1.5px dashed var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-text);
+  font-size: var(--fs-l);
+  background: rgba(25, 25, 24, 0.85);
+  pointer-events: none;
 }
-.hint.show { display: block; }
 
-.status.err { color: var(--error); }
-.small.warn { color: var(--error); margin-top: 6px; }
-.status { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-
+/* ---------- Frames ---------- */
 .strip {
-  display: flex;
-  gap: 6px;
+  grid-area: strip;
   overflow-x: auto;
-  padding: 8px 0 4px;
-  margin-top: 8px;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
-.thumb {
-  flex: 0 0 auto;
-  border: 1px solid var(--border);
-  background: #0a0a0a;
-  padding: 3px;
-  cursor: pointer;
-  position: relative;
-}
-.thumb canvas { display: block; height: 72px; width: auto; }
-.thumb.active { border-color: var(--accent); }
-.thumb span {
-  position: absolute; left: 3px; bottom: 3px;
-  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
-  background: rgba(0,0,0,0.7); color: #aaa; padding: 1px 4px;
-  max-width: calc(100% - 6px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-}
-.thumb.add { display: flex; align-items: center; justify-content: center; width: 72px; height: 80px; color: var(--muted); font-size: 1.3rem; }
-
-/* ---------- Sidebar ---------- */
-.side { display: flex; flex-direction: column; gap: 4px; }
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 14px 16px 16px;
-}
-.panel h2 {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  margin-bottom: 12px;
-}
-
-.row { margin-bottom: 10px; }
-.row:last-child { margin-bottom: 0; }
-.row label {
+.strip::-webkit-scrollbar { display: none; }
+.strip-inner {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  color: #bbb;
-  margin-bottom: 3px;
-  cursor: default;
-  user-select: none;
+  gap: 8px;
+  padding: 8px 8px max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+  min-width: max-content;
 }
-.row label output { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); }
-
-input[type=range] {
-  -webkit-appearance: none; appearance: none;
-  width: 100%; height: 18px; background: transparent; cursor: pointer;
+.frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 8px 8px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
 }
-input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #333; }
-input[type=range]::-moz-range-track { height: 2px; background: #333; }
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 12px; height: 12px; margin-top: -5px; background: #ccc; border: none; border-radius: 50%;
+.frame:hover { background: rgba(70, 67, 61, 0.55); }
+.frame canvas { display: block; height: 64px; width: auto; border-radius: 6px; }
+.frame .no { font-family: var(--f-px); font-size: var(--fs-s); line-height: var(--lh-s); color: var(--text-dim); padding-left: 2px; }
+.frame.active { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.frame.active .no { color: var(--accent-text); }
+.frame.add {
+  width: 80px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: var(--fs-l);
+  background: var(--surface-2);
 }
-input[type=range]::-moz-range-thumb { width: 12px; height: 12px; background: #ccc; border: none; border-radius: 50%; }
-input[type=range]:disabled { opacity: 0.4; }
 
-.row label.check { justify-content: flex-start; }
-.check { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #bbb; cursor: pointer; }
-.check input { accent-color: var(--accent); }
+/* ---------- Kaartenkolom ---------- */
+.side {
+  grid-area: side;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px max(8px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: none;
+}
+.side::-webkit-scrollbar { display: none; }
+.side > * { flex-shrink: 0; }
 
-.btns { display: flex; flex-wrap: wrap; gap: 4px; }
-.btns button { flex: 1 1 auto; }
+.glass {
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.25);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+}
+.card { padding: 24px; display: flex; flex-direction: column; gap: 8px; }
+.card-k { font-size: var(--fs-s); line-height: var(--lh-s); color: var(--text); margin-bottom: 8px; }
 
-.small { font-size: 0.72rem; color: var(--muted); line-height: 1.5; margin-top: 8px; }
-.small code { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; background: var(--code-bg); border: 1px solid var(--border); padding: 0 4px; }
+/* De kopkaart: titel in twee tinten, met een levende gloed erachter. */
+.head-card { position: relative; overflow: hidden; padding: 24px; min-height: 168px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
+.head-card > :not(.blob) { position: relative; }
+.head-title { font-size: var(--fs-l); line-height: var(--lh-l); letter-spacing: -0.015em; }
+.head-title span { display: block; color: var(--text-dim); }
+.head-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.head-foot .status { font-size: var(--fs-s); line-height: var(--lh-s); color: var(--text-dim); min-width: 0; overflow-wrap: anywhere; }
+.head-foot .status.err { color: var(--error); }
+.head-foot .count { font-family: var(--f-px); font-size: 48px; line-height: 0.8; letter-spacing: -0.02em; white-space: nowrap; }
+.head-foot .count sup { font-family: var(--f-ui); font-size: var(--fs-s); line-height: 1; vertical-align: top; margin-left: 4px; color: var(--text-dim); }
+.head-links { display: flex; gap: 16px; font-size: var(--fs-s); line-height: var(--lh-s); }
+.head-links a { color: var(--text-dim); text-decoration: none; }
+.head-links a:hover { color: var(--text); }
 
-.progress { height: 2px; background: #222; margin-top: 10px; display: none; }
-.progress.show { display: block; }
-.progress div { height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+.blob {
+  position: absolute;
+  top: -72px;
+  right: -88px;
+  width: 260px;
+  height: 260px;
+  filter: blur(36px);
+  opacity: 0.7;
+  animation: blob-wander 40s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.blob::before, .blob::after { content: ""; position: absolute; }
+.blob::before {
+  inset: 8% 4% 16% 12%;
+  background: linear-gradient(140deg, #f4733f, #c9583a 55%, #8a4d6b);
+  animation: blob-morph-a 9s ease-in-out infinite alternate;
+}
+.blob::after {
+  inset: 40% 36% 0 0;
+  background: linear-gradient(200deg, #6c5a8a, #d86b3e);
+  opacity: 0.85;
+  animation: blob-morph-b 13s ease-in-out infinite alternate;
+}
+@keyframes blob-wander {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  33%  { transform: translate(-60px, 40px) rotate(24deg); }
+  66%  { transform: translate(-120px, 16px) rotate(-16deg); }
+  100% { transform: translate(-40px, 56px) rotate(8deg); }
+}
+@keyframes blob-morph-a {
+  0%   { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; transform: scale(1) rotate(0deg); }
+  50%  { border-radius: 70% 30% 46% 54% / 30% 62% 38% 70%; transform: scale(1.1, 0.88) rotate(25deg); }
+  100% { border-radius: 28% 72% 32% 68% / 64% 30% 70% 36%; transform: scale(0.9, 1.12) rotate(-15deg); }
+}
+@keyframes blob-morph-b {
+  0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: translate(0, 0) scale(1); }
+  100% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; transform: translate(32px, -40px) scale(1.15); }
+}
 
-details.help { margin-top: 4px; }
-details.help summary { cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; color: #aaa; line-height: 1.55; display: flex; flex-direction: column; gap: 5px; }
+/* Schuifbalken zoals in het trainingsplan: het gevulde deel draagt het label,
+   de waarde staat rechts. Een echte <input type=range> ligt er onzichtbaar over. */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  --f: 0.5;
+}
+.bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(136px + (100% - 136px - 72px) * var(--f));
+  display: flex;
+  align-items: center;
+  padding: 0 16px 0 20px;
+  border-radius: 999px;
+  background: var(--fill);
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+.bar.on .bar-fill { background: var(--fill-on); }
+.bar output {
+  margin-left: auto;
+  padding-right: 20px;
+  position: relative;
+  font-family: var(--f-px);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.bar.on output { color: var(--text); }
+.bar input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: ew-resize;
+  margin: 0;
+}
+.bar:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bar:has(input:disabled) { opacity: 0.4; }
 
-@media (max-width: 860px) {
-  body { padding-block: 20px 50px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .app { grid-template-columns: 1fr; }
-  .stage { min-height: 260px; }
-  .stage canvas { max-height: 60vh; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field-k { font-size: var(--fs-s); line-height: var(--lh-s); color: var(--text-dim); }
+
+/* Keuzes als pillen in een rij */
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface-2); }
+.seg button {
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: var(--fs-m);
+}
+.seg button[aria-pressed="true"] { background: var(--fill); color: var(--text); }
+
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 48px; padding: 0 8px 0 20px; border-radius: 999px; background: var(--surface-2); cursor: pointer; }
+.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle .knob { width: 44px; height: 28px; border-radius: 999px; background: var(--fill); position: relative; transition: background-color 0.2s ease; }
+.toggle .knob::after { content: ""; position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--text); transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1); }
+.toggle input:checked + .knob { background: var(--accent); }
+.toggle input:checked + .knob::after { transform: translateX(16px); }
+.toggle:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.row-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.row-btns .chip { flex: 1 1 auto; }
+
+.note { font-size: var(--fs-s); line-height: var(--lh-s); color: var(--text-dim); }
+.note.warn { color: var(--accent-text); }
+.note a { color: var(--text-dim); }
+
+.progress { height: 4px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.progress div { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.3s ease; }
+
+.steps { list-style: none; counter-reset: s; display: flex; flex-direction: column; }
+.steps li { counter-increment: s; display: flex; gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); font-size: var(--fs-m); line-height: var(--lh-m); }
+.steps li:first-child { border-top: 0; padding-top: 0; }
+.steps li::before { content: counter(s); font-family: var(--f-px); color: var(--accent-text); min-width: 16px; }
+
+.tabs { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Telefoon / smal ---------- */
+@media (max-width: 899px) {
+  html, body { height: auto; }
+  body { overflow: auto; }
+  .app { display: block; height: auto; }
+  .stage {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 4;
+    height: 48vh;
+    height: 48dvh;
+    margin: 0;
+    border-radius: 0 0 24px 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: env(safe-area-inset-top, 0px);
+    background: var(--surround);
+    z-index: 10;
+  }
+  .tools { padding: 12px 12px 0; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tools::-webkit-scrollbar { display: none; }
+  .tools .grow { flex: 0 0 4px; }
+  .tools .chip { flex: 0 0 auto; }
+  .head-card { gap: 12px; }
+  .head-title { font-size: 20px; line-height: 28px; }
+  .tools .chip { height: 36px; padding: 0 12px; font-size: 14px; }
+  .tools .chip.icon { width: 36px; padding: 0; }
+  .canvas-wrap { padding: 12px; }
+  .badge { top: 60px; }
+  .hint { bottom: 12px; font-size: 14px; line-height: 20px; padding: 10px 16px; }
+  .strip-inner { padding: 8px max(8px, env(safe-area-inset-left, 0px)) 0; }
+  .side {
+    overflow: visible;
+    padding: 8px max(8px, env(safe-area-inset-right, 0px)) max(32px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    min-height: 60vh;
+  }
+  .tabs {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 48dvh + 8px);
+    z-index: 3;
+    background: rgba(40, 39, 36, 0.85);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+  }
+  .tabs button { height: 40px; border: 0; border-radius: 999px; background: none; color: var(--text-dim); cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--fill); color: var(--text); }
+  .side [data-tab] { display: none; }
+  .side[data-show="toon"] [data-tab="toon"],
+  .side[data-show="kleur"] [data-tab="kleur"],
+  .side[data-show="analyse"] [data-tab="analyse"],
+  .side[data-show="export"] [data-tab="export"] { display: flex; }
+  .head-card { min-height: 0; }
 }
 </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>Negatief Converter</h1>
-    <p>DNG / TIFF / JPEG · alles lokaal in je browser — niets wordt geüpload</p>
-  </div>
-  <a href="/">← Scanworkflow</a>
-</header>
-
 <div class="app">
 
-  <div class="viewer">
-    <div class="toolbar">
-      <button id="bRotL" title="Linksom draaien">⟲</button>
-      <button id="bRotR" title="Rechtsom draaien">⟳</button>
-      <button id="bFlip" title="Horizontaal spiegelen">⇋ Spiegel</button>
-      <button id="bNeg" title="Ingedrukt houden of klikken: ruw negatief tonen">Negatief</button>
-      <button id="bBase" title="Klik daarna op een onbelicht stukje filmrand">Filmbasis kiezen</button>
-      <button id="bNeutral" title="Klik daarna op iets dat grijs of wit hoort te zijn">Neutraal kiezen</button>
-      <div class="status" id="status"></div>
+  <main class="stage" id="stage">
+    <div class="tools">
+      <button class="chip icon" id="bRotL" type="button" title="Linksom draaien" aria-label="Linksom draaien"><svg viewBox="0 0 16 16"><path d="M3 3v3.5h3.5"/><path d="M3.4 6.3A5.3 5.3 0 1 1 3 9"/></svg></button>
+      <button class="chip icon" id="bRotR" type="button" title="Rechtsom draaien" aria-label="Rechtsom draaien"><svg viewBox="0 0 16 16"><path d="M13 3v3.5H9.5"/><path d="M12.6 6.3A5.3 5.3 0 1 0 13 9"/></svg></button>
+      <button class="chip icon" id="bFlip" type="button" title="Spiegelen" aria-label="Spiegelen"><svg viewBox="0 0 16 16"><path d="M8 2v12"/><path d="M5.5 4.5 2 11.5h3.5zM10.5 4.5l3.5 7h-3.5z"/></svg></button>
+      <span class="grow"></span>
+      <button class="chip" id="bNeg" type="button" title="Het bestand tonen zoals het binnenkomt">Origineel</button>
+      <button class="chip" id="bBase" type="button" title="Klik daarna op onbelichte filmrand">Filmbasis</button>
+      <button class="chip" id="bNeutral" type="button" title="Klik daarna op iets grijs of wits">Neutraal</button>
+    </div>
+    <div class="canvas-wrap"><canvas id="view"></canvas></div>
+    <div class="badge" id="badge" hidden>Origineel</div>
+    <div class="hint" id="hint" hidden></div>
+    <div class="drop" id="drop" hidden>
+      <strong>Sleep scans hierheen</strong>
+      <span>of tik om te kiezen</span>
+    </div>
+  </main>
+
+  <nav class="strip" aria-label="Frames">
+    <div class="strip-inner" id="strip"></div>
+  </nav>
+
+  <aside class="side" id="side" data-show="toon">
+
+    <section class="glass head-card">
+      <div class="blob" aria-hidden="true"></div>
+      <div class="head-title">Negatief naar positief<span id="headSub">Voorbeeld</span></div>
+      <div class="head-foot">
+        <div class="status" id="status" role="status"></div>
+        <div class="count tnum" id="count"></div>
+      </div>
+      <div class="row-btns">
+        <button class="chip primary" id="bOpen" type="button">Scans openen</button>
+      </div>
+      <div class="head-links"><a href="/" class="hide-artifact">Scanworkflow</a></div>
+    </section>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-t="toon" aria-selected="true">Toon</button>
+      <button type="button" role="tab" data-t="kleur" aria-selected="false">Kleur</button>
+      <button type="button" role="tab" data-t="analyse" aria-selected="false">Bron</button>
+      <button type="button" role="tab" data-t="export" aria-selected="false">Export</button>
     </div>
 
-    <div class="stage" id="stage">
-      <canvas id="view"></canvas>
-      <div class="drop" id="drop">
-        <strong>Sleep scans hierheen of klik om te kiezen</strong>
-        <small>Gebruik de <b>raw DNG</b> (of raw TIFF) uit VueScan — dat is het onbewerkte negatief. De JPEG van VueScan is al omgezet.</small>
+    <section class="glass card" data-tab="toon">
+      <div class="card-k">Toon</div>
+      <div class="bar"><div class="bar-fill">Belichting</div><output></output><input type="range" id="s-exposure" data-k="exposure" min="-100" max="100" value="0" aria-label="Belichting"></div>
+      <div class="bar"><div class="bar-fill">Contrast</div><output></output><input type="range" id="s-contrast" data-k="contrast" min="0" max="100" value="30" aria-label="Contrast"></div>
+      <div class="bar"><div class="bar-fill">Middentonen</div><output></output><input type="range" id="s-mid" data-k="mid" min="-100" max="100" value="0" aria-label="Middentonen"></div>
+      <div class="bar"><div class="bar-fill">Zwartpunt</div><output></output><input type="range" id="s-black" data-k="black" min="-50" max="50" value="0" aria-label="Zwartpunt"></div>
+      <div class="bar"><div class="bar-fill">Witpunt</div><output></output><input type="range" id="s-white" data-k="white" min="-50" max="50" value="0" aria-label="Witpunt"></div>
+    </section>
+
+    <section class="glass card" data-tab="kleur">
+      <div class="card-k">Kleur</div>
+      <div class="bar"><div class="bar-fill">Temperatuur</div><output></output><input type="range" id="s-temp" data-k="temp" min="-100" max="100" value="0" aria-label="Temperatuur"></div>
+      <div class="bar"><div class="bar-fill">Tint</div><output></output><input type="range" id="s-tint" data-k="tint" min="-100" max="100" value="0" aria-label="Tint"></div>
+      <div class="bar"><div class="bar-fill">Verzadiging</div><output></output><input type="range" id="s-sat" data-k="sat" min="0" max="200" value="100" aria-label="Verzadiging"></div>
+      <label class="toggle"><span>Zwart-wit</span><input type="checkbox" id="bw"><span class="knob"></span></label>
+    </section>
+
+    <section class="glass card" data-tab="toon">
+      <div class="card-k">Frame</div>
+      <div class="row-btns">
+        <button class="chip" id="bReset" type="button">Reset</button>
+        <button class="chip" id="bCopy" type="button">Naar alle</button>
+        <button class="chip" id="bRemove" type="button">Verwijder</button>
       </div>
-      <div class="hint" id="hint"></div>
-    </div>
+      <p class="note">Dubbelklik op een balk om hem te resetten. Pijltjes wisselen van frame.</p>
+    </section>
 
-    <div class="strip" id="strip"></div>
-  </div>
-
-  <div class="side">
-
-    <div class="panel">
-      <h2>Analyse</h2>
-      <div class="row">
-        <label for="source">Bron</label>
-        <select id="source" style="width:100%">
-          <option value="neg">Negatief (omkeren)</option>
-          <option value="pos">Al positief (niet omkeren)</option>
-        </select>
-        <div class="small warn" id="maskInfo" hidden></div>
+    <section class="glass card" data-tab="analyse">
+      <div class="card-k">Bron en analyse</div>
+      <div class="field">
+        <div class="field-k">Bron</div>
+        <div class="seg" id="sourceSeg">
+          <button type="button" data-v="neg" aria-pressed="true">Negatief</button>
+          <button type="button" data-v="pos" aria-pressed="false">Al positief</button>
+        </div>
+        <select id="source" hidden><option value="neg">neg</option><option value="pos">pos</option></select>
+        <div class="note warn" id="maskInfo" hidden></div>
       </div>
-      <div class="row">
-        <label for="mode">Kleurbalans</label>
-        <select id="mode" style="width:100%">
-          <option value="frame">Per frame</option>
-          <option value="roll">Hele rol (consistent)</option>
-        </select>
+      <div class="field">
+        <div class="field-k">Kleurbalans</div>
+        <div class="seg" id="modeSeg">
+          <button type="button" data-v="frame" aria-pressed="true">Per frame</button>
+          <button type="button" data-v="roll" aria-pressed="false">Hele rol</button>
+        </div>
+        <select id="mode" hidden><option value="frame">frame</option><option value="roll">roll</option></select>
       </div>
-      <div class="row">
-        <label>Rand negeren <output id="o-border"></output></label>
-        <input type="range" id="border" min="0" max="25" step="1" value="8">
+      <div class="bar"><div class="bar-fill">Rand negeren</div><output id="o-border"></output><input type="range" id="border" min="0" max="25" step="1" value="8" aria-label="Rand negeren"></div>
+      <div class="note" id="baseInfo">Filmbasis automatisch</div>
+    </section>
+
+    <section class="glass card" data-tab="export">
+      <div class="card-k">Export</div>
+      <div class="seg" id="fmtSeg">
+        <button type="button" data-v="tif" aria-pressed="true">TIFF 16-bit</button>
+        <button type="button" data-v="jpg" aria-pressed="false">JPEG</button>
       </div>
-      <div class="small" id="baseInfo">Filmbasis: automatisch</div>
-    </div>
-
-    <div class="panel">
-      <h2>Toon</h2>
-      <div class="row"><label>Belichting <output></output></label><input type="range" data-k="exposure" min="-100" max="100" value="0"></div>
-      <div class="row"><label>Contrast <output></output></label><input type="range" data-k="contrast" min="0" max="100" value="30"></div>
-      <div class="row"><label>Middentonen <output></output></label><input type="range" data-k="mid" min="-100" max="100" value="0"></div>
-      <div class="row"><label>Zwartpunt <output></output></label><input type="range" data-k="black" min="-50" max="50" value="0"></div>
-      <div class="row"><label>Witpunt <output></output></label><input type="range" data-k="white" min="-50" max="50" value="0"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Kleur</h2>
-      <div class="row"><label>Temperatuur <output></output></label><input type="range" data-k="temp" min="-100" max="100" value="0"></div>
-      <div class="row"><label>Tint <output></output></label><input type="range" data-k="tint" min="-100" max="100" value="0"></div>
-      <div class="row"><label>Verzadiging <output></output></label><input type="range" data-k="sat" min="0" max="200" value="100"></div>
-      <div class="row"><label class="check"><input type="checkbox" id="bw"> Zwart-wit</label></div>
-    </div>
-
-    <div class="panel">
-      <h2>Frame</h2>
-      <div class="btns">
-        <button id="bReset">Reset frame</button>
-        <button id="bCopy">Kopieer naar alle</button>
-        <button id="bRemove">Verwijder</button>
+      <select id="fmt" hidden><option value="tif">tif</option><option value="jpg">jpg</option></select>
+      <div class="row-btns">
+        <button class="chip primary" id="bExport" type="button">Exporteer frame</button>
+        <button class="chip" id="bExportAll" type="button">Alles</button>
       </div>
-      <div class="small">Dubbelklik op een schuif om die te resetten. ← / → wisselt van frame.</div>
-    </div>
+      <div class="progress" id="prog" hidden><div></div></div>
+      <p class="note">Volledige resolutie, als naam_pos.tif. Op claude.ai komen TIFFs in een zip.</p>
+    </section>
 
-    <div class="panel">
-      <h2>Export</h2>
-      <div class="row">
-        <select id="fmt" style="width:100%">
-          <option value="tif">TIFF 16-bit (archief / Lightroom)</option>
-          <option value="jpg">JPEG kwaliteit 95</option>
-        </select>
-      </div>
-      <div class="btns">
-        <button id="bExport" class="primary">Exporteer frame</button>
-        <button id="bExportAll" class="primary">Exporteer alles</button>
-      </div>
-      <div class="progress" id="prog"><div></div></div>
-      <div class="small">Volledige resolutie. Bestandsnaam: <code>naam_pos.tif</code>. In Chrome kies je één map voor alles; in Safari komen de bestanden in Downloads. Op claude.ai komen TIFFs in een <code>.zip</code>.</div>
-    </div>
-
-    <details class="help panel">
-      <summary>Werkwijze</summary>
-      <ul>
-        <li>VueScan: Output → <b>Raw file</b> aan, type DNG. Die raw is het onbewerkte negatief.</li>
+    <section class="glass card" data-tab="export">
+      <div class="card-k">Werkwijze</div>
+      <ol class="steps">
+        <li>VueScan: Output, Raw file aan, type DNG. Die raw is het onbewerkte negatief.</li>
         <li>Sleep alle DNG's van een rol hierheen.</li>
-        <li><b>Rand negeren</b> zo instellen dat de houder en filmrand buiten de analyse vallen.</li>
-        <li>Optioneel: <b>Filmbasis kiezen</b> en klik op het oranje stuk film tussen twee frames — geeft de zuiverste schaduwen.</li>
-        <li>Kleurzweem? <b>Neutraal kiezen</b> en klik op iets grijs/wits, of gebruik Temperatuur en Tint.</li>
-        <li><b>Hele rol</b> analyseert alle frames samen — dezelfde kleur over de rol, zoals bij Lock Exposure.</li>
-        <li>Zwart-wit negatieven: zet <b>Zwart-wit</b> aan.</li>
-      </ul>
-    </details>
+        <li>Rand negeren zo hoog dat houder en filmrand buiten de analyse vallen.</li>
+        <li>Filmbasis: klik op het oranje stuk film tussen twee frames.</li>
+        <li>Kleurzweem? Neutraal, en klik op iets grijs of wits.</li>
+        <li>Hele rol geeft dezelfde kleurbalans over alle frames.</li>
+      </ol>
+    </section>
+  </aside>
 
-  </div>
 </div>
 
 <input type="file" id="file" multiple accept=".dng,.tif,.tiff,.jpg,.jpeg,.png,image/*" hidden>
@@ -363,11 +639,11 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
 
   const PREVIEW_EDGE = 1600, THUMB_EDGE = 220;
   const $ = (id) => document.getElementById(id);
-  const view = $('view'), vctx = view.getContext('2d');
+  const view = $('view');
   const stage = $('stage');
 
   const state = {
-    frames: [],     // {id, name, file, preview, thumb, hist, s, thumbCanvas}
+    frames: [],     // {name, file|sample, preview, thumb, hist, s, el, canvas}
     cur: -1,
     mode: 'frame',
     border: 0.08,
@@ -376,6 +652,47 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     busy: false,
   };
   let rollHist = null;
+
+  // ---------- Voorbeeld: gesimuleerd kleurnegatief van een kleurenkaart ----------
+
+  function makeSampleNegative() {
+    const patches = [
+      [115,82,68],[194,150,130],[98,122,157],[87,108,67],[133,128,177],[103,189,170],
+      [214,126,44],[80,91,166],[193,90,99],[94,60,108],[157,188,64],[224,163,46],
+      [56,61,150],[70,148,73],[175,54,60],[231,199,31],[187,86,149],[8,133,161],
+      [243,243,242],[200,200,200],[160,160,160],[122,122,121],[85,85,85],[52,52,52],
+    ];
+    const W = 1200, H = 820, rebate = 44, P = 150, G = 18;
+    const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const base = [0.24, 0.56, 0.86], gam = [0.56, 0.61, 0.66], gain = [0.92, 1, 0.95];
+    const data = new Uint16Array(W * H * 3);
+    const gx0 = (W - (6 * P + 5 * G)) / 2, gy0 = (H - (4 * P + 3 * G)) / 2;
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 - 0.5; };
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        let L;
+        const inRebate = x < rebate || x >= W - rebate || y < rebate || y >= H - rebate;
+        if (!inRebate) {
+          const cx = x - gx0, cy = y - gy0;
+          const col = Math.floor(cx / (P + G)), row = Math.floor(cy / (P + G));
+          const inPatch = cx >= 0 && cy >= 0 && col < 6 && row < 4 && cx % (P + G) < P && cy % (P + G) < P;
+          // kaartachtergrond: donkergrijs, met een zachte lichtval
+          const fall = 1 - 0.18 * (((x - W / 2) / W) ** 2 + ((y - H / 2) / H) ** 2) * 4;
+          const c = inPatch ? patches[row * 6 + col].map(lin) : [0.035, 0.035, 0.037];
+          L = c.map((v) => Math.max(1e-4, v * fall * 0.9));
+        }
+        const o = (y * W + x) * 3;
+        const grain = rnd() * 0.025;
+        for (let k = 0; k < 3; k++) {
+          const D = inRebate ? base[k] : base[k] + gam[k] * (Math.log10(L[k]) - Math.log10(0.0015));
+          const v = Math.pow(10, -(D + grain)) * gain[k];
+          data[o + k] = Math.max(0, Math.min(65535, v * 65535));
+        }
+      }
+    }
+    return { w: W, h: H, data };
+  }
 
   // ---------- Bestanden laden ----------
 
@@ -394,41 +711,62 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     return NC.fromRGBA8(id.data, c.width, c.height);
   }
 
+  function addFrame(name, full, extra) {
+    const preview = NC.downscale(full, PREVIEW_EDGE);
+    const fr = Object.assign({
+      name,
+      fullSize: [full.w, full.h],
+      preview,
+      thumb: NC.downscale(preview, THUMB_EDGE),
+      hist: NC.histogram(preview, state.border),
+      s: NC.defaults(),
+    }, extra);
+    fr.mask = NC.maskStrength(fr.hist);
+    fr.autoBase = NC.estimateBase(preview);
+    state.frames.push(fr);
+    rollHist = null;
+    makeThumb(fr);
+    return fr;
+  }
+
+  function removeSamples() {
+    for (let i = state.frames.length - 1; i >= 0; i--) {
+      if (state.frames[i].sample) {
+        state.frames[i].el.remove();
+        state.frames.splice(i, 1);
+      }
+    }
+    state.cur = -1;
+    rollHist = null;
+    renumber();
+  }
+
   async function addFiles(files) {
     files = Array.from(files).filter((f) => /\.(dng|tiff?|jpe?g|png)$/i.test(f.name))
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     if (!files.length) return;
-    $('drop').style.display = 'none';
+    const wasSample = state.frames.some((f) => f.sample);
+    if (wasSample) removeSamples();
+    const first = state.frames.length;
+    let error = false;
+    $('drop').hidden = true;
     for (let i = 0; i < files.length; i++) {
-      setStatus(`Laden ${i + 1}/${files.length}: ${files[i].name}`);
+      setStatus(`Laden ${i + 1}/${files.length} · ${files[i].name}`);
       await tick();
       try {
         const full = await decodeFile(files[i]);
-        const preview = NC.downscale(full, PREVIEW_EDGE);
-        const fr = {
-          id: Math.random().toString(36).slice(2),
-          name: files[i].name,
-          file: files[i],
-          fullSize: [full.w, full.h],
-          preview,
-          thumb: NC.downscale(preview, THUMB_EDGE),
-          hist: NC.histogram(preview, state.border),
-          s: NC.defaults(),
-        };
-        fr.mask = NC.maskStrength(fr.hist);
-        state.frames.push(fr);
-        makeThumb(fr);
-        rollHist = null;
-        if (state.cur < 0) select(0);
+        addFrame(files[i].name, full, { file: files[i] });
+        if (state.cur < 0 || i === 0) select(first);
       } catch (e) {
         console.error(e);
+        error = true;
         setStatus(`${files[i].name} kon niet worden gelezen: ${e.message}`, true);
         await new Promise((r) => setTimeout(r, 2500));
       }
     }
-    if (!state.frames.length) $('drop').style.display = '';
+    if (!state.frames.length) { $('drop').hidden = false; drawEmpty(); }
     if (state.mode === 'roll') refreshAll();
-    if (!$('status').classList.contains('err')) setStatus(frameStatus());
+    if (!error) setStatus(frameStatus());
     updateButtons();
   }
 
@@ -440,7 +778,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
       if (!rollHist) rollHist = NC.mergeHistograms(state.frames.map((f) => f.hist));
       H = rollHist;
     }
-    return NC.analyze(H, fr.s.positive ? null : fr.s.base);
+    return NC.analyze(H, fr.s.positive ? null : (fr.s.base || fr.autoBase));
   }
 
   function params(fr) { return NC.buildParams(analysis(fr), fr.s); }
@@ -458,26 +796,36 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => {
       const fr = state.frames[state.cur];
-      if (!fr) { view.width = view.height = 0; return; }
+      if (!fr) { drawEmpty(); return; }
       const P = params(fr);
       renderTo(view, fr.preview, fr, P, state.showNeg);
       clearTimeout(thumbTimer);
       thumbTimer = setTimeout(() => makeThumb(fr, P), 150);
     });
   }
+  function drawEmpty() { view.width = view.height = 0; }
 
   function makeThumb(fr, P) {
-    if (!fr.thumbCanvas) {
-      const el = document.createElement('div');
-      el.className = 'thumb';
-      el.innerHTML = '<canvas></canvas><span></span>';
-      el.querySelector('span').textContent = fr.name;
+    if (!fr.el) {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'frame';
+      el.innerHTML = '<canvas></canvas><span class="no"></span>';
+      el.title = fr.name;
       el.onclick = () => select(state.frames.indexOf(fr));
       $('strip').insertBefore(el, addTile);
-      fr.thumbEl = el;
-      fr.thumbCanvas = el.querySelector('canvas');
+      fr.el = el;
+      fr.canvas = el.querySelector('canvas');
+      renumber();
     }
-    renderTo(fr.thumbCanvas, fr.thumb, fr, P || params(fr), false);
+    renderTo(fr.canvas, fr.thumb, fr, P || params(fr), false);
+  }
+
+  // Framenummers in Geist Pixel
+  function renumber() {
+    state.frames.forEach((f, i) => {
+      if (f.el) f.el.querySelector('.no').textContent = f.sample ? 'voorbeeld' : String(i + 1).padStart(2, '0');
+    });
   }
 
   function refreshAll() {
@@ -491,58 +839,88 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
   function select(i) {
     if (i < 0 || i >= state.frames.length) return;
     state.cur = i;
-    state.frames.forEach((f, k) => f.thumbEl && f.thumbEl.classList.toggle('active', k === i));
-    const el = state.frames[i].thumbEl;
+    state.frames.forEach((f, k) => f.el && f.el.classList.toggle('active', k === i));
+    const el = state.frames[i].el;
     if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     syncControls();
     setPick(null);
     draw();
     setStatus(frameStatus());
+    updateButtons();
   }
 
   function frameStatus() {
     const fr = state.frames[state.cur];
     if (!fr) return '';
-    return `${state.cur + 1}/${state.frames.length} · ${fr.name} · ${fr.fullSize[0]}×${fr.fullSize[1]}`;
+    if (fr.sample) return 'Een gesimuleerd kleurnegatief van een kleurenkaart. Open je eigen scans om te beginnen.';
+    return `${fr.fullSize[0]} × ${fr.fullSize[1]} px`;
   }
 
   const sliders = Array.from(document.querySelectorAll('input[data-k]'));
+  const DEF = NC.defaults();
   function fmtVal(k, v) {
     if (k === 'sat') return v + '%';
     return (v > 0 ? '+' : '') + v;
   }
 
+  // Balk: het gevulde deel groeit met de waarde; oranje zodra hij afwijkt
+  function paintSlider(el) {
+    const min = +el.min, max = +el.max, v = +el.value;
+    const d = el.dataset.k ? DEF[el.dataset.k] : 8;
+    const bar = el.closest('.bar');
+    bar.style.setProperty('--f', (v - min) / (max - min));
+    bar.classList.toggle('on', v !== d);
+    bar.querySelector('output').textContent = el.dataset.k ? fmtVal(el.dataset.k, v) : v + '%';
+  }
+
+  // Pillenrijen sturen de verborgen <select>-elementen aan
+  function bindSeg(segId, selId) {
+    const seg = $(segId), sel = $(selId);
+    seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      if (sel.value === b.dataset.v) return;
+      sel.value = b.dataset.v;
+      syncSeg(segId, selId);
+      sel.dispatchEvent(new Event('change'));
+    }));
+  }
+  function syncSeg(segId, selId) {
+    const v = $(selId).value;
+    $(segId).querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === v ? 'true' : 'false'));
+  }
+
   function syncControls() {
     const fr = state.frames[state.cur];
     const s = fr ? fr.s : NC.defaults();
-    sliders.forEach((el) => {
-      el.value = s[el.dataset.k];
-      el.parentElement.querySelector('output').textContent = fmtVal(el.dataset.k, s[el.dataset.k]);
-    });
+    sliders.forEach((el) => { el.value = s[el.dataset.k]; paintSlider(el); });
     $('bw').checked = s.bw;
     $('source').value = s.positive ? 'pos' : 'neg';
+    syncSeg('sourceSeg', 'source');
+    $('headSub').textContent = fr ? (fr.sample ? 'Voorbeeld' : fr.name) : 'Geen scans';
+    $('count').innerHTML = fr && !fr.sample ? `${state.cur + 1}<sup>/ ${state.frames.filter((f) => !f.sample).length}</sup>` : '';
     const mi = $('maskInfo');
     mi.hidden = !(fr && !s.positive && fr.mask < 0.15);
-    mi.textContent = 'Geen oranje masker gevonden. Ziet het resultaat eruit als een negatief? Dan is dit bestand al positief: kies "Al positief". (Zwart-wit negatieven hebben ook geen masker.)';
-    $('bBase').disabled = !fr || s.positive || state.busy;
+    mi.textContent = 'Geen oranje masker gevonden. Ziet het resultaat eruit als een negatief? Dan is dit bestand al positief: kies "Al positief". Zwart-wit negatieven hebben ook geen masker.';
     $('bFlip').classList.toggle('on', !!s.flip);
-    $('baseInfo').textContent = s.base
-      ? `Filmbasis: gekozen (D ${s.base.map((d) => d.toFixed(2)).join(' / ')})`
-      : 'Filmbasis: automatisch';
-    if (s.base) {
+    const bi = $('baseInfo');
+    bi.textContent = s.positive ? 'Filmbasis is niet nodig bij een positief'
+      : s.base ? `Filmbasis gekozen, D ${s.base.map((d) => d.toFixed(2)).join(' / ')}. ` : 'Filmbasis automatisch';
+    if (s.base && !s.positive) {
       const a = document.createElement('a');
-      a.href = '#'; a.textContent = ' · wissen'; a.style.color = 'var(--muted)';
+      a.href = '#'; a.textContent = 'wissen';
       a.onclick = (e) => { e.preventDefault(); applyToTargets((x) => { x.base = null; }); };
-      $('baseInfo').appendChild(a);
+      bi.appendChild(a);
     }
   }
 
   function updateButtons() {
     const has = state.frames.length > 0;
-    ['bRotL', 'bRotR', 'bFlip', 'bNeg', 'bBase', 'bNeutral', 'bReset', 'bCopy', 'bRemove', 'bExport', 'bExportAll']
+    const real = state.frames.some((f) => !f.sample);
+    ['bRotL', 'bRotR', 'bFlip', 'bNeg', 'bBase', 'bNeutral', 'bReset', 'bCopy', 'bRemove']
       .forEach((id) => { $(id).disabled = !has || state.busy; });
+    ['bExport', 'bExportAll'].forEach((id) => { $(id).disabled = !real || state.busy; });
     const cur = state.frames[state.cur];
     if (cur && cur.s.positive) $('bBase').disabled = true;
+    if (cur && cur.sample) $('bExport').disabled = true;
     sliders.forEach((el) => { el.disabled = !has; });
   }
 
@@ -553,20 +931,21 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     if (state.mode === 'roll') state.frames.forEach((f) => fn(f.s));
     else fn(fr.s);
     syncControls();
+    updateButtons();
     if (state.mode === 'roll') refreshAll(); else draw();
   }
 
   sliders.forEach((el) => {
     const k = el.dataset.k;
     el.addEventListener('input', () => {
+      paintSlider(el);
       const fr = state.frames[state.cur];
       if (!fr) return;
       fr.s[k] = +el.value;
-      el.parentElement.querySelector('output').textContent = fmtVal(k, fr.s[k]);
       draw();
     });
     el.addEventListener('dblclick', () => {
-      el.value = NC.defaults()[k];
+      el.value = DEF[k];
       el.dispatchEvent(new Event('input'));
     });
   });
@@ -581,18 +960,29 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
 
   $('border').addEventListener('input', () => {
     state.border = $('border').value / 100;
-    $('o-border').textContent = $('border').value + '%';
+    paintSlider($('border'));
     state.frames.forEach((f) => { f.hist = NC.histogram(f.preview, state.border); });
     refreshAll();
   });
-  $('o-border').textContent = $('border').value + '%';
+  paintSlider($('border'));
+  bindSeg('sourceSeg', 'source');
+  bindSeg('modeSeg', 'mode');
+  bindSeg('fmtSeg', 'fmt');
 
   $('mode').addEventListener('change', () => {
     state.mode = $('mode').value;
     refreshAll();
   });
 
-  // ---------- Toolbar ----------
+  // Tabbladen (alleen zichtbaar op smalle schermen)
+  document.querySelectorAll('.tabs button').forEach((b) => {
+    b.addEventListener('click', () => {
+      $('side').dataset.show = b.dataset.t;
+      document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
+    });
+  });
+
+  // ---------- Gereedschap ----------
 
   function rotate(d) {
     const fr = state.frames[state.cur];
@@ -612,6 +1002,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
   $('bNeg').onclick = () => {
     state.showNeg = !state.showNeg;
     $('bNeg').classList.toggle('on', state.showNeg);
+    $('badge').hidden = !state.showNeg;
     draw();
   };
 
@@ -621,9 +1012,9 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     $('bNeutral').classList.toggle('on', state.pick === 'neutral');
     stage.classList.toggle('picking', !!state.pick);
     const hint = $('hint');
-    hint.classList.toggle('show', !!state.pick);
-    if (state.pick === 'base') hint.textContent = 'Klik op onbelichte filmrand (oranje, tussen of naast de frames). Esc = annuleren.';
-    if (state.pick === 'neutral') hint.textContent = 'Klik op iets dat neutraal grijs of wit hoort te zijn. Esc = annuleren.';
+    hint.hidden = !state.pick;
+    if (state.pick === 'base') hint.innerHTML = 'Klik op <b>onbelichte filmrand</b>, het oranje stuk tussen de frames';
+    if (state.pick === 'neutral') hint.innerHTML = 'Klik op iets dat <b>grijs of wit</b> hoort te zijn';
   }
   $('bBase').onclick = () => setPick('base');
   $('bNeutral').onclick = () => setPick('neutral');
@@ -641,7 +1032,6 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     if (state.pick === 'base') {
       applyToTargets((s) => { s.base = D; });
     } else {
-      // n-waarden zonder bestaande correctie; zet wb zodat ze gelijk worden
       const n = NC.normalized(analysis(fr), D, fr.s.positive);
       const m = (n[0] + n[1] + n[2]) / 3;
       applyToTargets((s) => { s.wb = n.map((v) => m - v); s.temp = 0; s.tint = 0; });
@@ -656,7 +1046,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     if (!fr) return;
     const { rot, flip } = fr.s;
     fr.s = Object.assign(NC.defaults(), { rot, flip });
-    syncControls(); draw();
+    syncControls(); updateButtons(); draw();
   };
 
   $('bCopy').onclick = () => {
@@ -674,13 +1064,14 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
   $('bRemove').onclick = () => {
     const fr = state.frames[state.cur];
     if (!fr) return;
-    fr.thumbEl.remove();
+    fr.el.remove();
     state.frames.splice(state.cur, 1);
     rollHist = null;
+    renumber();
     if (!state.frames.length) {
       state.cur = -1;
-      $('drop').style.display = '';
-      view.width = view.height = 0;
+      $('drop').hidden = false;
+      drawEmpty();
       syncControls(); updateButtons(); setStatus('');
       return;
     }
@@ -734,6 +1125,8 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
   }
 
   async function exportFrames(list) {
+    list = list.filter((f) => !f.sample);
+    if (!list.length) return;
     const fmt = $('fmt').value;
     const cap = await claudeDownloads();
     let dir = null;
@@ -743,12 +1136,12 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     }
     state.busy = true; updateButtons();
     const prog = $('prog');
-    prog.classList.add('show');
+    prog.hidden = false;
     const zipFiles = [];
     try {
       for (let i = 0; i < list.length; i++) {
         const fr = list[i];
-        setStatus(`Exporteren ${i + 1}/${list.length}: ${fr.name}`);
+        setStatus(`Exporteren ${i + 1}/${list.length} · ${fr.name}`);
         prog.firstElementChild.style.width = (i / list.length * 100) + '%';
         await tick();
         const blob = await encodeFrame(fr, fmt);
@@ -778,48 +1171,52 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
       setStatus(e && e.code === 'declined' ? 'Opslaan geannuleerd' : 'Export mislukt: ' + (e.message || e.code), e && e.code !== 'declined');
     } finally {
       state.busy = false; updateButtons();
-      setTimeout(() => prog.classList.remove('show'), 1500);
+      setTimeout(() => { prog.hidden = true; }, 1500);
     }
   }
 
   $('bExport').onclick = () => state.frames[state.cur] && exportFrames([state.frames[state.cur]]);
-  $('bExportAll').onclick = () => state.frames.length && exportFrames(state.frames.slice());
+  $('bExportAll').onclick = () => exportFrames(state.frames.slice());
 
   // ---------- Invoer ----------
 
-  const addTile = document.createElement('div');
-  addTile.className = 'thumb add';
+  const addTile = document.createElement('button');
+  addTile.type = 'button';
+  addTile.className = 'frame add';
   addTile.textContent = '+';
   addTile.title = 'Scans toevoegen';
+  addTile.setAttribute('aria-label', 'Scans toevoegen');
   addTile.onclick = () => $('file').click();
   $('strip').appendChild(addTile);
 
+  $('bOpen').onclick = () => $('file').click();
   $('drop').onclick = () => $('file').click();
   $('file').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
 
-  ['dragenter', 'dragover'].forEach((t) => document.addEventListener(t, (e) => {
-    e.preventDefault(); stage.classList.add('dragover');
-  }));
-  ['dragleave', 'drop'].forEach((t) => document.addEventListener(t, (e) => {
-    e.preventDefault(); if (t === 'drop' || e.target === document.documentElement) stage.classList.remove('dragover');
-  }));
+  let dragDepth = 0;
+  document.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; stage.classList.add('dragover'); });
+  document.addEventListener('dragover', (e) => e.preventDefault());
+  document.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; stage.classList.remove('dragover'); } });
   document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
     stage.classList.remove('dragover');
     if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'SELECT' || e.target.type === 'range') return;
     if (e.key === 'Escape') setPick(null);
-    if (e.key === 'ArrowRight' && e.target.type !== 'range') select(state.cur + 1);
-    if (e.key === 'ArrowLeft' && e.target.type !== 'range') select(state.cur - 1);
+    if (e.key === 'ArrowRight') select(state.cur + 1);
+    if (e.key === 'ArrowLeft') select(state.cur - 1);
   });
 
   function setStatus(t, err) { $('status').textContent = t; $('status').classList.toggle('err', !!err); }
   function tick() { return new Promise((r) => setTimeout(r, 0)); }
 
-  syncControls();
-  updateButtons();
+  // Start met een voorbeeldnegatief, zodat je meteen ziet wat het doet
+  addFrame('Voorbeeld · kleurenkaart', makeSampleNegative(), { sample: true });
+  select(0);
 
   // Voor tests
   window.__nc = { state, addFiles };

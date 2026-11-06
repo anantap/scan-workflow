@@ -160,6 +160,16 @@
     return { hist, total };
   };
 
+  /**
+   * Schatting van de filmbasis: het dunste deel van de hele scan, inclusief
+   * de rand (onbelichte film tussen en naast de frames). Doorzon telt niet mee.
+   */
+  NC.estimateBase = function (img) {
+    const H = NC.histogram(img, 0);
+    if (!H.total) return null;
+    return [0, 1, 2].map((c) => percentile(H.hist[c], H.total, 0.0005));
+  };
+
   NC.mergeHistograms = function (list) {
     const B = NC.HBINS;
     const hist = [new Uint32Array(B), new Uint32Array(B), new Uint32Array(B)];
@@ -197,9 +207,11 @@
     if (base && H && H.total) {
       // Filmbasis bepaalt de kleurbalans in de schaduwen; het zwartpunt
       // ligt voor alle kanalen op dezelfde fractie tussen basis en hooglicht.
-      let f = 0;
-      for (let c = 0; c < 3; c++) f += Math.max(0, (lo[c] - base[c]) / Math.max(0.05, hi[c] - base[c]));
-      f /= 3;
+      // Mediaan, zodat één verzadigde kleur (bv. cyaan: bijna geen rood) het
+      // zwartpunt van dat kanaal niet wegtrekt.
+      const fr = [0, 1, 2].map((c) => Math.max(0, (lo[c] - base[c]) / Math.max(0.05, hi[c] - base[c])));
+      fr.sort((a, b) => a - b);
+      const f = fr[1];
       for (let c = 0; c < 3; c++) lo[c] = base[c] + f * (hi[c] - base[c]);
     }
     for (let c = 0; c < 3; c++) if (hi[c] - lo[c] < 0.05) hi[c] = lo[c] + 0.05;
