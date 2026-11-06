@@ -17,6 +17,8 @@
   --muted: #888;
   --accent: #c8a96e;
   --code-bg: #1a1a1a;
+  --error: #d9826b;
+  color-scheme: dark;
 }
 
 body {
@@ -24,7 +26,9 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding: 32px 24px 60px;
+  padding-block: 32px 60px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
 }
 
 header {
@@ -129,6 +133,7 @@ select { padding: 6px 8px; }
 }
 .hint.show { display: block; }
 
+.status.err { color: var(--error); }
 .status { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 .strip {
@@ -219,7 +224,7 @@ details.help summary { cursor: pointer; font-family: 'IBM Plex Mono', monospace;
 details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; color: #aaa; line-height: 1.55; display: flex; flex-direction: column; gap: 5px; }
 
 @media (max-width: 860px) {
-  body { padding: 20px 14px 50px; }
+  body { padding-block: 20px 50px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .app { grid-template-columns: 1fr; }
   .stage { min-height: 260px; }
   .stage canvas { max-height: 60vh; }
@@ -319,7 +324,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
         <button id="bExportAll" class="primary">Exporteer alles</button>
       </div>
       <div class="progress" id="prog"><div></div></div>
-      <div class="small">Volledige resolutie. Bestandsnaam: <code>naam_pos.tif</code>. In Chrome kies je één map voor alles; in Safari komen de bestanden in Downloads.</div>
+      <div class="small">Volledige resolutie. Bestandsnaam: <code>naam_pos.tif</code>. In Chrome kies je één map voor alles; in Safari komen de bestanden in Downloads. Op claude.ai komen TIFFs in een <code>.zip</code>.</div>
     </div>
 
     <details class="help panel">
@@ -407,12 +412,13 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
         if (state.cur < 0) select(0);
       } catch (e) {
         console.error(e);
-        alert(`${files[i].name} kon niet worden gelezen:\n${e.message}`);
+        setStatus(`${files[i].name} kon niet worden gelezen: ${e.message}`, true);
+        await new Promise((r) => setTimeout(r, 2500));
       }
     }
     if (!state.frames.length) $('drop').style.display = '';
     if (state.mode === 'roll') refreshAll();
-    setStatus(frameStatus());
+    if (!$('status').classList.contains('err')) setStatus(frameStatus());
     updateButtons();
   }
 
@@ -696,16 +702,28 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
 
+  let downloadsCap;
+  async function claudeDownloads() {
+    if (downloadsCap !== undefined) return downloadsCap;
+    downloadsCap = null;
+    if (window.claude && window.claude.use) {
+      try { downloadsCap = await window.claude.use('downloads'); } catch (e) { downloadsCap = null; }
+    }
+    return downloadsCap;
+  }
+
   async function exportFrames(list) {
     const fmt = $('fmt').value;
+    const cap = await claudeDownloads();
     let dir = null;
-    if (list.length > 1 && window.showDirectoryPicker) {
+    if (!cap && list.length > 1 && window.showDirectoryPicker) {
       try { dir = await window.showDirectoryPicker({ mode: 'readwrite' }); }
       catch (e) { if (e.name === 'AbortError') return; }
     }
     state.busy = true; updateButtons();
     const prog = $('prog');
     prog.classList.add('show');
+    const zipFiles = [];
     try {
       for (let i = 0; i < list.length; i++) {
         const fr = list[i];
@@ -714,7 +732,10 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
         await tick();
         const blob = await encodeFrame(fr, fmt);
         const name = outName(fr, fmt);
-        if (dir) {
+        if (cap) {
+          if (fmt === 'jpg' && list.length === 1) await cap.save({ filename: name, data: blob });
+          else zipFiles.push({ name, data: new Uint8Array(await blob.arrayBuffer()) });
+        } else if (dir) {
           const fh = await dir.getFileHandle(name, { create: true });
           const w = await fh.createWritable();
           await w.write(blob); await w.close();
@@ -723,12 +744,17 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
           await new Promise((r) => setTimeout(r, 500));
         }
       }
+      if (zipFiles.length) {
+        setStatus('ZIP maken…');
+        await tick();
+        const zipName = list.length === 1 ? outName(list[0], 'zip') : 'negatieven_pos.zip';
+        await cap.save({ filename: zipName, data: new Blob(NC.zipParts(zipFiles)) });
+      }
       prog.firstElementChild.style.width = '100%';
       setStatus(`${list.length} bestand${list.length > 1 ? 'en' : ''} geëxporteerd`);
     } catch (e) {
       console.error(e);
-      alert('Export mislukt: ' + e.message);
-      setStatus('Export mislukt');
+      setStatus(e && e.code === 'declined' ? 'Opslaan geannuleerd' : 'Export mislukt: ' + (e.message || e.code), e && e.code !== 'declined');
     } finally {
       state.busy = false; updateButtons();
       setTimeout(() => prog.classList.remove('show'), 1500);
@@ -768,7 +794,7 @@ details.help ul { margin-top: 10px; padding-left: 16px; font-size: 0.78rem; colo
     if (e.key === 'ArrowLeft' && e.target.type !== 'range') select(state.cur - 1);
   });
 
-  function setStatus(t) { $('status').textContent = t; }
+  function setStatus(t, err) { $('status').textContent = t; $('status').classList.toggle('err', !!err); }
   function tick() { return new Promise((r) => setTimeout(r, 0)); }
 
   syncControls();
