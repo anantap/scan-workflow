@@ -1,0 +1,47 @@
+# XcodeGen-projectbestand. Genereer het Xcode-project met:  xcodegen generate
+name: NegConverter
+options:
+  bundleIdPrefix: nl.ananta
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+
+targets:
+  NegConverter:
+    type: application
+    platform: macOS
+    scheme: {}
+    sources:
+      - path: Sources
+      # De converter zelf: dezelfde bestanden als de website.
+      - path: ../converter.html
+        buildPhase: resources
+      - path: ../converter-core.js
+        buildPhase: resources
+      - path: ../vendor
+        type: folder
+      - path: ../fonts
+        type: folder
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Negatief Converter
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.photography
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHumanReadableCopyright: Voor eigen gebruik.
+    settings:
+      base:
+        PRODUCT_NAME: Negatief Converter
+        PRODUCT_BUNDLE_IDENTIFIER: nl.ananta.negatiefconverter
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        SWIFT_STRICT_CONCURRENCY: minimal
+        # Ad-hoc ondertekenen: draait op je eigen Mac zonder Apple-ontwikkelaarsaccount.
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""
+        ENABLE_HARDENED_RUNTIME: NO
+        COMBINE_HIDPI_IMAGES: YES

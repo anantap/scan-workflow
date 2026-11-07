@@ -302,6 +302,7 @@ body::before {
 .head-links { display: flex; gap: 16px; font-size: var(--fs-s); line-height: var(--lh-s); }
 .head-links a { color: var(--text-dim); text-decoration: none; }
 .head-links a:hover { color: var(--text); }
+.in-app .head-links { display: none; }
 
 .blob {
   position: absolute;
@@ -610,7 +611,7 @@ body::before {
         <button class="chip" id="bExportAll" type="button">Alles</button>
       </div>
       <div class="progress" id="prog" hidden><div></div></div>
-      <p class="note">Volledige resolutie, als naam_pos.tif. Op claude.ai komen TIFFs in een zip.</p>
+      <p class="note" id="exportNote">Volledige resolutie, als naam_pos.tif. Op claude.ai komen TIFFs in een zip.</p>
     </section>
 
     <section class="glass card" data-tab="export">
@@ -638,6 +639,7 @@ body::before {
   'use strict';
 
   const PREVIEW_EDGE = 1600, THUMB_EDGE = 220;
+  const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nc);
   const $ = (id) => document.getElementById(id);
   const view = $('view');
   const stage = $('stage');
@@ -702,7 +704,7 @@ body::before {
       const buf = await file.arrayBuffer();
       return NC.decodeTIFF(buf, UTIF);
     }
-    const bmp = await createImageBitmap(file);
+    const bmp = await createImageBitmap(file.blob ? await file.blob() : file);
     const c = document.createElement('canvas');
     c.width = bmp.width; c.height = bmp.height;
     const ctx = c.getContext('2d');
@@ -1111,7 +1113,7 @@ body::before {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    setTimeout(() => URL.revokeObjectURL(a.href), NATIVE ? 120000 : 10000);
   }
 
   let downloadsCap;
@@ -1128,9 +1130,14 @@ body::before {
     list = list.filter((f) => !f.sample);
     if (!list.length) return;
     const fmt = $('fmt').value;
-    const cap = await claudeDownloads();
+    const cap = NATIVE ? null : await claudeDownloads();
     let dir = null;
-    if (!cap && list.length > 1 && window.showDirectoryPicker) {
+    if (NATIVE) {
+      // Mac-app: de app bewaart in de gekozen exportmap (eenmalig vragen)
+      const folder = await native({ type: 'exportFolder' });
+      if (!folder) { setStatus('Export geannuleerd'); return; }
+    }
+    if (!cap && !NATIVE && list.length > 1 && window.showDirectoryPicker) {
       try { dir = await window.showDirectoryPicker({ mode: 'readwrite' }); }
       catch (e) { if (e.name === 'AbortError') return; }
     }
@@ -1155,7 +1162,7 @@ body::before {
           await w.write(blob); await w.close();
         } else {
           download(blob, name);
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, NATIVE ? 250 : 500));
         }
       }
       if (zipFiles.length) {
@@ -1186,11 +1193,11 @@ body::before {
   addTile.textContent = '+';
   addTile.title = 'Scans toevoegen';
   addTile.setAttribute('aria-label', 'Scans toevoegen');
-  addTile.onclick = () => $('file').click();
+  addTile.onclick = () => openScans();
   $('strip').appendChild(addTile);
 
-  $('bOpen').onclick = () => $('file').click();
-  $('drop').onclick = () => $('file').click();
+  $('bOpen').onclick = () => openScans();
+  $('drop').onclick = () => openScans();
   $('file').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
 
   let dragDepth = 0;
@@ -1210,6 +1217,33 @@ body::before {
     if (e.key === 'ArrowRight') select(state.cur + 1);
     if (e.key === 'ArrowLeft') select(state.cur - 1);
   });
+
+  // ---------- Mac-app ----------
+  // In de app opent ⌘O ook mappen en komen exports direct in een map.
+
+  function native(msg) {
+    return window.webkit.messageHandlers.nc.postMessage(msg);
+  }
+
+  function openScans() {
+    if (NATIVE) native({ type: 'open' });
+    else $('file').click();
+  }
+
+  if (NATIVE) {
+    document.documentElement.classList.add('in-app');
+    $('exportNote').textContent = 'Volledige resolutie, als naam_pos.tif, in je exportmap. Wijzig de map via Archief → Exportmap kiezen.';
+
+    // Bestanden die de app aanreikt: pas lezen als een frame ze nodig heeft
+    window.ncOpenNative = (items) => addFiles(items.map((it) => ({
+      name: it.name,
+      arrayBuffer: () => fetch(it.url).then((r) => r.arrayBuffer()),
+      blob: () => fetch(it.url).then((r) => r.blob()),
+    })));
+    window.ncSaved = (name, folder) => setStatus(`Opgeslagen: ${name} in ${folder}`);
+    window.ncSaveFailed = (msg) => setStatus('Opslaan mislukt: ' + msg, true);
+    window.ncExportFolder = (folder) => setStatus('Exportmap: ' + folder);
+  }
 
   function setStatus(t, err) { $('status').textContent = t; $('status').classList.toggle('err', !!err); }
   function tick() { return new Promise((r) => setTimeout(r, 0)); }
