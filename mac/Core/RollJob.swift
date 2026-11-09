@@ -43,8 +43,9 @@ enum Roll {
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
     }
 
-    /// What the folder's name says about the film, as the scan inbox reads it: brackets that start with
-    /// "zw", "bw", "b&w" or "zwart-wit" mean black and white, "positief" or "positive" already positive.
+    /// What the folder's name says about the film. A tag in brackets, as the scan inbox reads it, comes
+    /// first: "(zw)", "(bw)", "(b&w)" or "(zwart-wit)" mean black and white, "(positief)" or "(positive)"
+    /// already positive. Otherwise a film stock in the name says it: HP5 is black and white, Velvia a slide.
     static func film(forFolder folder: URL) -> Film? {
         let name = folder.lastPathComponent
         if name.range(of: #"\(\s*(zw|bw|b&w|zwart-?wit)(?![a-z0-9])[^)]*\)"#, options: [.regularExpression, .caseInsensitive]) != nil {
@@ -52,6 +53,55 @@ enum Roll {
         }
         if name.range(of: #"\(\s*(positief|positive)(?![a-z0-9])[^)]*\)"#, options: [.regularExpression, .caseInsensitive]) != nil {
             return .positive
+        }
+        return stock(forFolder: folder)?.film
+    }
+
+    struct Stock: Equatable {
+        let name: String
+        let film: Film
+    }
+
+    /// Film stocks the folder name can mention: a pattern, the stock's full name ("#" is the speed in the
+    /// name, if any) and what kind of film it is.
+    private static let stocks: [(pattern: String, name: String, film: Film)] = [
+        // Black and white
+        (#"hp\s?5"#, "Ilford HP5 Plus #", .bw), (#"fp\s?4"#, "Ilford FP4 Plus #", .bw),
+        (#"delta"#, "Ilford Delta #", .bw), (#"pan\s?f"#, "Ilford Pan F Plus #", .bw),
+        (#"xp\s?2"#, "Ilford XP2 Super #", .bw), (#"sfx"#, "Ilford SFX #", .bw),
+        (#"tri-?\s?x"#, "Kodak Tri-X #", .bw), (#"t-?\s?max|tmax|tmy|tmx"#, "Kodak T-Max #", .bw),
+        (#"double-?\s?x"#, "Kodak Double-X #", .bw), (#"acros"#, "Fujifilm Acros #", .bw),
+        (#"foma(pan)?"#, "Fomapan #", .bw), (#"kentmere"#, "Kentmere #", .bw),
+        (#"rpx|retro|superpan"#, "Rollei #", .bw), (#"bergger"#, "Bergger Pancro #", .bw),
+        (#"adox"#, "Adox #", .bw), (#"ultrafine"#, "Ultrafine #", .bw), (#"ilford"#, "Ilford #", .bw),
+        // Slides
+        (#"ektachrome|e100"#, "Kodak Ektachrome #", .positive), (#"velvia"#, "Fujifilm Velvia #", .positive),
+        (#"provia"#, "Fujifilm Provia #", .positive), (#"kodachrome"#, "Kodachrome #", .positive),
+        (#"fujichrome"#, "Fujichrome #", .positive), (#"precisa"#, "AgfaPhoto CT Precisa #", .positive),
+        // Colour negative
+        (#"portra"#, "Kodak Portra #", .color), (#"ektar"#, "Kodak Ektar #", .color),
+        (#"ultra\s?max"#, "Kodak UltraMax #", .color), (#"color\s?plus"#, "Kodak ColorPlus #", .color),
+        (#"pro\s?image"#, "Kodak ProImage #", .color), (#"kodak\s?gold|(?<![a-z])gold"#, "Kodak Gold #", .color),
+        (#"vision\s?3"#, "Kodak Vision3 #", .color), (#"cinestill"#, "CineStill #", .color),
+        (#"superia"#, "Fujifilm Superia #", .color), (#"400h"#, "Fujifilm Pro 400H", .color),
+        (#"fujicolou?r|c200"#, "Fujicolor #", .color), (#"phoenix"#, "Harman Phoenix #", .color),
+        (#"lomo(graphy)?"#, "Lomography #", .color),
+    ]
+
+    /// The film stock the folder's name mentions, as "2026-11 Portra 400" or "HP5 roll 3".
+    static func stock(forFolder folder: URL) -> Stock? {
+        let name = folder.lastPathComponent
+        for stock in stocks {
+            guard let range = name.range(of: #"(?<![a-z0-9])("# + stock.pattern + #")(?![a-z])"#,
+                                         options: [.regularExpression, .caseInsensitive]) else { continue }
+            // The speed: a number (and a letter, as 800T) right after the stock's name.
+            let rest = name[range.upperBound...]
+            var speed = ""
+            if let match = rest.range(of: #"^[\s-]*(\d{2,4}[dt]?)(?![0-9])"#, options: [.regularExpression, .caseInsensitive]) {
+                speed = rest[match].trimmingCharacters(in: CharacterSet(charactersIn: " -")).uppercased()
+            }
+            let full = stock.name.replacingOccurrences(of: "#", with: speed).trimmingCharacters(in: .whitespaces)
+            return Stock(name: full, film: stock.film)
         }
         return nil
     }

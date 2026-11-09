@@ -2,8 +2,8 @@ import AppKit
 import Foundation
 
 /// Keeps the app up to date from the repository's GitHub releases. Every push builds the app and
-/// publishes it as the latest release, tagged `build-<number>`. The app looks for a newer one at launch
-/// and every few hours, downloads it in the background, and puts it in place when you restart (or
+/// publishes it as the latest release, tagged `build-<number>`. The app looks for a newer one at launch,
+/// downloads it in the background, and puts it in place when you restart (or
 /// quit) the app.
 @MainActor
 final class Updater: ObservableObject {
@@ -23,13 +23,10 @@ final class Updater: ObservableObject {
 
     let currentBuild = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "") ?? 0
     private var staged: URL?
-    private var timer: Timer?
 
+    /// Looks once, at launch.
     func start() {
         check()
-        timer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in
-            Task { @MainActor in Updater.shared.check() }
-        }
     }
 
     // MARK: - Checking and downloading

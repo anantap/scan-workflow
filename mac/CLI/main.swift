@@ -10,7 +10,8 @@ Converts every scan (DNG, TIFF, JPEG, PNG) in the folder to a positive.
 Options:
   --out <folder>        where the files go (default: Positief inside the roll)
   --film color|bw|positive
-                        default: from the folder name ("(zw)", "(positief)"), else color
+                        default: from the folder name, a tag ("(zw)", "(positief)") or a
+                        film stock in it ("HP5", "Velvia"), else color
   --no-roll             balance each frame on its own instead of the roll together
   --no-tiff             no 16-bit TIFF
   --no-jpeg             no JPEG
@@ -66,7 +67,8 @@ do {
     let engine = try Engine(scriptFolders: scriptFolders)
     let files = Roll.scans(in: folder)
     var failed = 0
-    print("\(files.count) scan\(files.count == 1 ? "" : "s") in \(folder.lastPathComponent), \(options.film.title.lowercased())")
+    let stock = Roll.stock(forFolder: folder).map { " (\($0.name))" } ?? ""
+    print("\(files.count) scan\(files.count == 1 ? "" : "s") in \(folder.lastPathComponent), \(options.film.title.lowercased())\(stock)")
     let output = try RollConverter(engine: engine).run(folder: folder, options: options) { index, state, note in
         let name = files[index].lastPathComponent
         switch state {
