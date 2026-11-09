@@ -17,7 +17,19 @@ brew install node
 
 Een recente Compositor: de projecten gebruiken 16-bit lagen (projectformaat 12). De huidige versie (1.6.6) kan dat.
 
-## Gebruik
+## Makkelijkst: de sleep-app
+
+Eenmalig, in Terminal:
+
+```
+~/scan-workflow/compositor/install-droplet.sh
+```
+
+Dat maakt **Negatieven naar Compositor** in je Programma's-map (in je thuismap). Zet hem in je Dock.
+Sleep daarna een map met DNG's op het icoon, kies het soort scans, en de `.comp`-bestanden
+verschijnen naast de scans. De stap-voor-stap uitleg staat ook op de site, in de tab Omzetten.
+
+## Vanuit Terminal
 
 Vanuit de map van deze repo, met de raw DNG's van VueScan:
 

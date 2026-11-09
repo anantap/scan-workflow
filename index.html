@@ -103,6 +103,8 @@ header p {
 
 .tab:hover { color: var(--text); }
 .tab-link { text-decoration: none; margin-left: auto; color: var(--color-accent); }
+.tabs { overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
 .tab { white-space: nowrap; }
 @media (max-width: 480px) { .tab { padding: 8px 9px; letter-spacing: 0.02em; } }
 
@@ -289,6 +291,7 @@ code {
   <button class="tab active-bw" onclick="switchTab('bw')">Zwart-wit</button>
   <button class="tab" onclick="switchTab('color')">Kleur</button>
   <button class="tab" onclick="switchTab('setup')">Installatie</button>
+  <button class="tab" onclick="switchTab('convert')">Omzetten</button>
   <a class="tab tab-link" href="/converter">Converter</a>
 </div>
 
@@ -595,11 +598,109 @@ for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
 
 </div>
 
+<!-- OMZETTEN TAB -->
+
+<div class="panel" id="panel-convert">
+
+  <div class="step step-setup">
+    <div class="step-num">01</div>
+    <div class="step-body">
+      <div class="step-title">Hoe het werkt</div>
+      <ul>
+        <li>Geen knop ín Compositor: je sleept een map met scans op de app <strong>Negatieven naar Compositor</strong> in je Dock</li>
+        <li>Die maakt van elke scan een Compositor-project (<code>.comp</code>) met het positief erin</li>
+        <li>Dat project open je in Compositor en daar stel je bij</li>
+      </ul>
+      <div class="note">Eenmalig installeren (stap 02–04), daarna per rol alleen stap 05–07.</div>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">02</div>
+    <div class="step-body">
+      <div class="step-title">Node installeren <span class="lock-badge badge-optional">eenmalig</span></div>
+      <ul>
+        <li>Open Terminal en typ:</li>
+      </ul>
+      <div class="code-block">brew install node</div>
+      <div class="note">Homebrew nog niet geïnstalleerd? Zie de tab Installatie, stap 01.</div>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">03</div>
+    <div class="step-body">
+      <div class="step-title">Scripts downloaden <span class="lock-badge badge-optional">eenmalig</span></div>
+      <ul>
+        <li>In Terminal (dit zet een map <code>scan-workflow</code> in je thuismap):</li>
+      </ul>
+      <div class="code-block">cd ~
+git clone -b claude/deploy-film-scanner-vercel-u9PuX https://github.com/anantap/scan-workflow.git</div>
+      <div class="note">Laat deze map staan: de app gebruikt de scripts erin.</div>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">04</div>
+    <div class="step-body">
+      <div class="step-title">De app maken <span class="lock-badge badge-optional">eenmalig</span></div>
+      <ul>
+        <li>In Terminal:</li>
+      </ul>
+      <div class="code-block">~/scan-workflow/compositor/install-droplet.sh</div>
+      <ul style="margin-top: 14px;">
+        <li>Er opent een Finder-venster met <strong>Negatieven naar Compositor</strong></li>
+        <li>Sleep die naar je <strong>Dock</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">05</div>
+    <div class="step-body">
+      <div class="step-title">Scannen</div>
+      <ul>
+        <li>Scan zoals in de tab Kleur, met <strong>Raw file → DNG</strong> aan</li>
+        <li>Zet de DNG's van één rol samen in één map</li>
+      </ul>
+      <div class="note">Gebruik de DNG's, niet de JPEGs: die heeft VueScan al omgezet.</div>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">06</div>
+    <div class="step-body">
+      <div class="step-title">Omzetten</div>
+      <ul>
+        <li>Sleep de <strong>map</strong> met DNG's op het icoon in je Dock</li>
+        <li>Kies <strong>Kleurnegatief</strong>, <strong>Zwart-wit negatief</strong> of <strong>Al positief</strong></li>
+        <li>Wacht tot de map opengaat: naast elke scan staat nu een <code>.comp</code>-bestand</li>
+      </ul>
+      <div class="note">De hele rol krijgt dezelfde kleurbalans, net als Lock Exposure in VueScan. De eerste keer vraagt macOS misschien om toestemming voor de map: klik op Sta toe.</div>
+    </div>
+  </div>
+
+  <div class="step step-setup">
+    <div class="step-num">07</div>
+    <div class="step-body">
+      <div class="step-title">Bijstellen in Compositor</div>
+      <ul>
+        <li>Dubbelklik een <code>.comp</code>-bestand</li>
+        <li>De laag <strong>Positief</strong> is je foto. Daarboven staan drie lagen die nog niets doen: <strong>Niveaus</strong>, <strong>Curven</strong> en <strong>Kleurbalans</strong></li>
+        <li>Selecteer zo'n laag om bij te stellen: helderheid en contrast met Niveaus of Curven, een kleurzweem met Kleurbalans</li>
+        <li>Exporteer zoals je gewend bent in Compositor</li>
+      </ul>
+      <div class="note">Ziet een frame er heel verkeerd uit (bijvoorbeeld als een negatief)? Sleep het opnieuw op het icoon en kies een ander soort. Het nieuwe project heet dan <code>naam 2.comp</code>.</div>
+    </div>
+  </div>
+
+</div>
+
 <script>
   function switchTab(tab) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t => {
-      t.classList.remove('active-color', 'active-bw');
+      t.classList.remove('active-color', 'active-bw', 'active-setup');
     });
 
     document.getElementById('panel-' + tab).classList.add('active');
@@ -608,8 +709,10 @@ for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
       tabs[0].classList.add('active-bw');
     } else if (tab === 'color') {
       tabs[1].classList.add('active-color');
-    } else {
+    } else if (tab === 'setup') {
       tabs[2].classList.add('active-setup');
+    } else {
+      tabs[3].classList.add('active-setup');
     }
   }
 </script>
