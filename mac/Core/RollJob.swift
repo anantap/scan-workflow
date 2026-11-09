@@ -43,7 +43,7 @@ enum Roll {
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
     }
 
-    /// What the folder's name says about the film. A tag in brackets, as the scan inbox reads it, comes
+    /// What the folder's name says about the film. A tag in brackets comes
     /// first: "(zw)", "(bw)", "(b&w)" or "(zwart-wit)" mean black and white, "(positief)" or "(positive)"
     /// already positive. Otherwise a film stock in the name says it: HP5 is black and white, Velvia a slide.
     static func film(forFolder folder: URL) -> Film? {

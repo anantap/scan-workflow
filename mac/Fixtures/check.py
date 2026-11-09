@@ -82,8 +82,8 @@ check('sRGB' in info.get('profile', ''), 'TIFF carries an sRGB profile')
 jinfo = sips(os.path.join(out, name + '.jpg'), 'format', 'pixelWidth', 'profile')
 check(jinfo.get('format') == 'jpeg' and jinfo.get('pixelWidth') == info.get('pixelWidth'), 'JPEG at full size')
 
-# The positive's grays, as the converter's maths gives them for this test negative (web converter,
-# scan-inbox and burke2comp agree): a ramp from black to white, neutral all the way.
+# The positive's grays, as the converter's maths gives them for this test negative (the web converter
+# and burke2comp agree): a ramp from black to white, neutral all the way.
 with tempfile.TemporaryDirectory() as tmp:
     as_png = os.path.join(tmp, 'positive.png')
     subprocess.run(['sips', '-s', 'format', 'png', tif, '--out', as_png], capture_output=True, check=True)

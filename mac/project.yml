@@ -26,7 +26,7 @@ targets:
     sources:
       - path: App
       - path: Core
-      # The converter's maths: the same scripts as the web converter and the scan inbox.
+      # The converter's maths: the same scripts as the web converter.
       - path: Engine/engine.js
         buildPhase: resources
       - path: ../converter-core.js

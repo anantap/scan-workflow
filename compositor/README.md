@@ -52,7 +52,7 @@ Eenmalig, in Terminal:
 
 Dat maakt **Negatieven naar Compositor** in je Programma's-map (in je thuismap). Zet hem in je Dock.
 Sleep daarna een map met DNG's op het icoon, kies het soort scans, en de `.comp`-bestanden
-verschijnen naast de scans. De stap-voor-stap uitleg staat ook op de site, in de tab Omzetten.
+verschijnen naast de scans. Makkelijker: de Mac-app Roll Converter (`mac/`) maakt dezelfde `.comp`-bestanden voor een hele rol.
 
 ## Vanuit Terminal
 

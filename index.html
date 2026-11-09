@@ -607,48 +607,31 @@ for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
     <div class="step-body">
       <div class="step-title">Hoe het werkt</div>
       <ul>
-        <li>VueScan <strong>scant alleen</strong> en bewaart raw DNG's in een vaste map: de <strong>inbox</strong></li>
-        <li>Een achtergrondtaak op de Mac zet elke nieuwe scan vanzelf om naar een positief in <code>Inbox/Positief</code>: een 16-bit TIFF om te bewerken en een JPEG</li>
-        <li>Komt er een kwartier niets bij, dan is de rol klaar: alle frames krijgen samen één kleurbalans en je krijgt een melding</li>
+        <li>VueScan <strong>scant alleen</strong> en bewaart raw DNG's, per rol in een eigen map op de SSD</li>
+        <li>De Mac-app <strong>Roll Converter</strong> zet een hele rol in één keer om: sleep de map erop en klik op Convert</li>
+        <li>Per scan een 16-bit TIFF (voor Compositor, Photoshop, Lightroom) en een JPEG, in de map <code>Positief</code> in de rol</li>
+        <li>Alle frames van de rol krijgen samen één kleurbalans</li>
       </ul>
-      <div class="note">Eenmalig instellen (stap 02–04), daarna per rol alleen stap 05.</div>
     </div>
   </div>
 
   <div class="step step-setup">
     <div class="step-num">02</div>
     <div class="step-body">
-      <div class="step-title">Node en de scripts <span class="lock-badge badge-optional">eenmalig</span></div>
+      <div class="step-title">De app installeren <span class="lock-badge badge-optional">eenmalig</span></div>
       <ul>
-        <li>In Terminal:</li>
+        <li>Download <a href="https://github.com/anantap/scan-workflow/releases/latest/download/Roll-Converter.zip" style="color: var(--color-accent)">Roll-Converter.zip</a>, pak hem uit en sleep <strong>Roll Converter</strong> naar Programma's</li>
+        <li>De eerste keer: rechtsklik → <strong>Open</strong> (hij is niet door een Apple-ontwikkelaarsaccount ondertekend)</li>
+        <li>Updates gaan vanzelf: bij het opstarten kijkt de app of er een nieuwe versie is</li>
       </ul>
-      <div class="code-block">brew install node
-cd ~
-git clone -b claude/deploy-film-scanner-vercel-u9PuX https://github.com/anantap/scan-workflow.git</div>
-      <div class="note">Staat de map <code>scan-workflow</code> er al? Haal dan de nieuwste versie op met <code>git -C ~/scan-workflow pull</code>.</div>
     </div>
   </div>
 
   <div class="step step-setup">
     <div class="step-num">03</div>
     <div class="step-body">
-      <div class="step-title">Automatisch omzetten aanzetten <span class="lock-badge badge-optional">eenmalig</span></div>
-      <div class="code-block">~/scan-workflow/automation/install.sh</div>
-      <ul style="margin-top: 14px;">
-        <li>Dit maakt de map <code>~/Scans/Inbox</code> en zet de achtergrondtaak aan; hij blijft aan na een herstart</li>
-        <li>Zwart-wit negatieven: <code>install.sh ~/Scans/Inbox --zw</code></li>
-        <li>Bijstellen in Compositor met de lagen van Alex Burke: <code>install.sh ~/Scans/Inbox --burke</code>. Per scan komt er dan een <code>.comp</code> in Positief: dubbelklik en stel Witpunt &amp; kleur, Hue/Saturation en Contrast bij</li>
-        <li>Uitzetten: <code>install.sh --verwijder</code></li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="step step-setup">
-    <div class="step-num">04</div>
-    <div class="step-body">
       <div class="step-title">VueScan: alleen scannen <span class="lock-badge badge-optional">eenmalig</span></div>
       <ul>
-        <li><strong>Output → Default folder</strong> → <code>~/Scans/Inbox</code></li>
         <li><strong>Raw file</strong> → aan, <strong>Raw file type</strong> → DNG</li>
         <li><strong>JPEG file</strong> en <strong>TIFF file</strong> → uit: VueScan hoeft niets meer om te zetten</li>
         <li><strong>Filter tab</strong> → Grain reduction en Restore fading uit</li>
@@ -658,17 +641,17 @@ git clone -b claude/deploy-film-scanner-vercel-u9PuX https://github.com/anantap/
   </div>
 
   <div class="step step-setup">
-    <div class="step-num">05</div>
+    <div class="step-num">04</div>
     <div class="step-body">
       <div class="step-title">Per rol</div>
       <ul>
-        <li>Scan de rol zoals altijd</li>
-        <li>Open <code>~/Scans/Inbox/Positief</code>: de foto's verschijnen terwijl je scant</li>
-        <li>Wissel de filmhouders vlot: komt er een kwartier geen scan bij, dan heet de rol klaar</li>
-        <li>Een kwartier na de laatste scan: melding <strong>Rol klaar</strong></li>
-        <li>Verplaats daarna de DNG's en de map Positief naar je archief, zodat de inbox leeg is voor de volgende rol</li>
+        <li>Maak een map voor de rol op de SSD en zet hem in VueScan als <strong>Output → Default folder</strong></li>
+        <li>Zet de film in de naam, bijvoorbeeld <code>2026-11 Portra 400</code> of <code>2026-11 HP5</code>: dan weet de app of het kleur, zwart-wit of dia is. Of zet <code>(zw)</code> of <code>(positief)</code> in de naam</li>
+        <li>Scan de rol, sleep de map op Roll Converter en klik op <strong>Convert</strong></li>
+        <li>Klaar: <strong>Show in Finder</strong> opent de positieven, <strong>Next Roll</strong> begint aan de volgende</li>
+        <li>Verplaats daarna de rol (DNG's en <code>Positief</code>) naar de NAS</li>
       </ul>
-      <div class="note">Een frame opnieuw laten omzetten? Gooi zijn TIFF in Positief weg. Iets mis? Kijk in <code>~/Library/Logs/scan-inbox.log</code>.</div>
+      <div class="note">Liever met de hand bijstellen in Compositor? Zet bij Make ook <strong>Compositor</strong> aan: per scan een <code>.comp</code> met de lagen van Alex Burke.</div>
     </div>
   </div>
 

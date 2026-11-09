@@ -7,11 +7,11 @@ A Mac app that converts a scanned roll in one go: point it at the roll's folder 
 - **JPEG**, to view and share
 - optionally a **Compositor project** with Alex Burke's layers, to fine-tune by hand
 - one colour balance for the whole roll, or each frame on its own
-- `(zw)` or `(positief)` in the folder name sets black and white or already-positive scans, as in the scan inbox;
+- `(zw)` or `(positief)` in the folder name sets black and white or already-positive scans;
   so does a film stock in the name: "HP5", "Tri-X" or "Delta" is black and white, "Velvia" or "Ektachrome" a slide,
   "Portra 400" colour. The stock only picks the kind of film: the colours come from measuring the roll itself
 
-It runs the same maths as the web converter and the scan inbox (`converter-core.js`,
+It runs the same maths as the web converter (`converter-core.js`,
 `compositor/burke-core.js`), in macOS's own JavaScriptCore: nothing else to install.
 
 ## Getting the app
