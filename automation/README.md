@@ -32,8 +32,9 @@ Komen er later scans bij in een rol, dan wordt die rol opnieuw in balans gebrach
 └── 2026-11 HP5 rol 13 (zw)/      ← "(zw)" in de naam: zwart-wit
 ```
 
-`(zw)` of `(positief)` in de mapnaam zegt wat voor film het is; zulke rollen worden TIFF en JPEG,
-ook met `--burke`.
+Haakjes in de mapnaam die beginnen met `zw` of `positief` zeggen wat voor film het is, de rest is
+vrije tekst: `(zw)`, `(zw-scanned)`, `(zw, bewerkt)`, `(positief lab)`. Zulke rollen worden TIFF en
+JPEG, ook met `--burke`.
 
 ## Aanzetten
 

@@ -58,8 +58,9 @@ Opties:
   --stil          geen meldingen
 
 Een map per rol: zet de scans van elke rol in een eigen submap van <inbox-map>. Elke submap
-krijgt een eigen Positief en een eigen kleurbalans. Zet "(zw)" of "(positief)" in de mapnaam
-voor zwart-wit of al positieve scans, bijvoorbeeld "2026-11 HP5 rol 13 (zw)".
+krijgt een eigen Positief en een eigen kleurbalans. Haakjes in de mapnaam die beginnen met "zw"
+of "positief" zeggen dat het zwart-wit of al positieve scans zijn; de rest is vrij, bijvoorbeeld
+"2026-11 HP5 rol 13 (zw)" of "2026-11 HP5 rol 13 (zw-scanned)".
   -h, --help      deze uitleg
 `;
 
@@ -305,12 +306,17 @@ async function processFolder(dir, o, isRoll) {
 }
 
 /**
- * Een rol kan in zijn mapnaam zeggen wat voor film het is: "(zw)" voor zwart-wit, "(positief)" voor
- * al positieve scans. Die worden gewoon omgezet naar TIFF en JPEG; Burke's lagen zijn voor kleurnegatief.
+ * Een rol kan in zijn mapnaam zeggen wat voor film het is: haakjes die beginnen met "zw" (zwart-wit)
+ * of "positief" (al positieve scans). De rest tussen de haakjes is vrij, zoals "(zw-scanned)" of
+ * "(zw, bewerkt)". Die rollen worden gewoon TIFF en JPEG; Burke's lagen zijn voor kleurnegatief.
  */
+export const FILM_TAGS = {
+  zw: /\(\s*(zw|bw|b&w|zwart-?wit)(?![a-z0-9])[^)]*\)/i,
+  positief: /\(\s*(positief|positive)(?![a-z0-9])[^)]*\)/i,
+};
 function folderOptions(dir, o) {
-  const name = path.basename(dir).toLowerCase();
-  const zw = /\((zw|bw)\)/.test(name), positief = /\(positie[f]?\)/.test(name);
+  const name = path.basename(dir);
+  const zw = FILM_TAGS.zw.test(name), positief = FILM_TAGS.positief.test(name);
   if (!zw && !positief) return o;
   return { ...o, zw: o.zw || zw, positief: o.positief || positief, burke: false };
 }
