@@ -18,6 +18,23 @@ met dezelfde omzetting als de Negatief Converter:
   opnieuw omgezet met één kleurbalans, zodat ze bij elkaar passen. Je krijgt een melding.
 - Een scan opnieuw laten omzetten? Gooi zijn TIFF in `Positief/` weg.
 
+## Een map per rol
+
+Maak je per rol een eigen map in de inbox (en zet VueScan per rol op die map), dan is elke map
+een rol: met een eigen `Positief`, een eigen kleurbalans, en zonder naamconflicten tussen rollen.
+Komen er later scans bij in een rol, dan wordt die rol opnieuw in balans gebracht.
+
+```
+~/Scans/Inbox/
+├── 2026-11 Portra 400 rol 12/
+│   ├── scan0001.dng
+│   └── Positief/
+└── 2026-11 HP5 rol 13 (zw)/      ← "(zw)" in de naam: zwart-wit
+```
+
+`(zw)` of `(positief)` in de mapnaam zegt wat voor film het is; zulke rollen worden TIFF en JPEG,
+ook met `--burke`.
+
 ## Aanzetten
 
 Eenmalig `brew install node`, dan:

@@ -56,6 +56,10 @@ Opties:
   --rust <min>    minuten zonder nieuwe scan voordat de rol klaar heet (standaard 15:
                   ruim genoeg om een filmhouder te wisselen)
   --stil          geen meldingen
+
+Een map per rol: zet de scans van elke rol in een eigen submap van <inbox-map>. Elke submap
+krijgt een eigen Positief en een eigen kleurbalans. Zet "(zw)" of "(positief)" in de mapnaam
+voor zwart-wit of al positieve scans, bijvoorbeeld "2026-11 HP5 rol 13 (zw)".
   -h, --help      deze uitleg
 `;
 
@@ -201,48 +205,36 @@ function notify(o, title, message) {
 
 // ---------- Hoofdlus ----------
 
-async function main() {
-  const o = parseArgs(process.argv.slice(2));
-  const inbox = path.resolve(o.inbox.replace(/^~(?=\/|$)/, process.env.HOME || '~'));
-  // Op een externe schijf die niet is aangesloten: niets te doen, en niets te melden.
-  const volume = inbox.match(/^\/Volumes\/[^/]+/);
-  if (volume && !fs.existsSync(volume[0])) return;
-  if (!fs.existsSync(inbox) || !fs.statSync(inbox).isDirectory()) fail(`${inbox} is geen map`);
-  try { fs.readdirSync(inbox); } catch (e) {
-    if (e.code === 'EPERM' || e.code === 'EACCES') {
-      fail(`macOS geeft geen toegang tot ${inbox}. Geef node toegang tot de volledige schijf: `
-        + 'Systeeminstellingen > Privacy en beveiliging > Volledige schijftoegang, + , kies ' + process.execPath);
-    }
-    throw e;
-  }
-  const outDir = path.join(inbox, 'Positief');
-  fs.mkdirSync(outDir, { recursive: true });
-  const stateFile = path.join(inbox, '.scan-inbox.json');
+/** Submappen die zelf een rol zijn: niet verborgen, niet onze eigen uitvoer, met scans erin. */
+function rollFolders(root) {
+  return fs.readdirSync(root, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'Positief')
+    .map((e) => path.join(root, e.name))
+    .filter((dir) => { try { return scansIn(dir).length > 0; } catch { return false; } })
+    .sort((a, b) => path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true }));
+}
 
-  // Eén tegelijk: een tweede start (de taak en de hand) stopt meteen.
-  const lock = path.join(inbox, '.scan-inbox.lock');
-  try {
-    fs.writeFileSync(lock, String(process.pid), { flag: 'wx' });
-  } catch {
-    const pid = Number(fs.readFileSync(lock, 'utf8'));
-    let alive = false;
-    try { process.kill(pid, 0); alive = true; } catch { /* niet meer actief */ }
-    if (alive) return;
-    fs.writeFileSync(lock, String(process.pid));
-  }
-  const unlock = () => { try { fs.rmSync(lock, { force: true }); } catch { /* al weg */ } };
-  process.on('exit', unlock);
-
+/**
+ * Eén map met scans: nieuwe scans omzetten naar <map>/Positief, en de rol in balans brengen als er
+ * een tijd niets bij is gekomen. `isRoll`: de map IS de rol (een map per rol), dus alle scans erin
+ * horen samen; anders (één inbox voor alles) begint een scan na een afgeronde rol een nieuwe rol.
+ */
+async function processFolder(dir, o, isRoll) {
+  const outDir = path.join(dir, 'Positief');
+  const stateFile = path.join(dir, '.scan-inbox.json');
   const state = readState(stateFile);
-  let converted = 0, noMask = [];
+  const rollName = isRoll ? path.basename(dir) : 'de inbox';
+  let converted = 0;
+  const noMask = [];
 
-  // 1. Nieuwe scans: alles zonder TIFF in Positief/, zodra VueScan klaar is met schrijven
+  // 1. Nieuwe scans: alles zonder uitvoer in Positief/, zodra VueScan klaar is met schrijven
   for (;;) {
     // Een scan die niet lukte, pas opnieuw als het bestand veranderd is.
     const failedBefore = (f) => state.failed[path.basename(f)] === fs.statSync(f).size;
     const output = (f) => path.join(outDir, `${baseName(f)}.${o.burke ? 'comp' : 'tif'}`);
-    const pending = scansIn(inbox).filter((f) => !fs.existsSync(output(f)) && !failedBefore(f));
+    const pending = scansIn(dir).filter((f) => !fs.existsSync(output(f)) && !failedBefore(f));
     if (!pending.length) break;
+    fs.mkdirSync(outDir, { recursive: true });
     let progressed = false;
     for (const file of pending) {
       if (!(await settled(file))) { log(`${path.basename(file)}: wordt nog geschreven, later opnieuw`); continue; }
@@ -256,10 +248,15 @@ async function main() {
           if (!o.positief && !an.masked) noMask.push(path.basename(file));
           size = render(file, NC.analyze(an.hist, an.base), o, outDir);
         }
-        log(`${path.basename(file)} → ${path.relative(inbox, output(file))} (${size[0]} × ${size[1]})`);
-        // Een scan na een afgeronde rol begint een nieuwe rol.
-        if (!state.roll || state.roll.balanced) state.roll = { files: [], balanced: false };
-        if (!state.roll.files.includes(path.basename(file))) state.roll.files.push(path.basename(file));
+        log(`${path.relative(path.dirname(dir), file)} → Positief/${path.basename(output(file))} (${size[0]} × ${size[1]})`);
+        if (isRoll) {
+          // De map is de rol: elke nieuwe scan vraagt om een nieuwe balans over de hele map.
+          state.roll = { files: [], balanced: false };
+        } else {
+          // Eén inbox: een scan na een afgeronde rol begint een nieuwe rol.
+          if (!state.roll || state.roll.balanced) state.roll = { files: [], balanced: false };
+          if (!state.roll.files.includes(path.basename(file))) state.roll.files.push(path.basename(file));
+        }
         state.roll.last = Date.now();
         delete state.failed[path.basename(file)];
         writeState(stateFile, state);
@@ -274,7 +271,7 @@ async function main() {
     if (!progressed) break;
   }
   if (converted) {
-    notify(o, 'Scans omgezet', `${converted} nieuw${converted > 1 ? 'e scans' : 'e scan'} in Positief`);
+    notify(o, 'Scans omgezet', `${converted} nieuw${converted > 1 ? 'e scans' : 'e scan'} in ${rollName}`);
   }
   if (noMask.length) {
     log(`Geen oranje masker in ${noMask.join(', ')}: al positief, of zwart-wit? Gebruik dan --positief of --zw.`);
@@ -282,28 +279,74 @@ async function main() {
 
   // 2. Rol klaar (een tijd geen nieuwe scan): alle frames samen in balans brengen
   const roll = state.roll;
-  if (o.rol && roll && !roll.balanced && roll.files.length > 1 && Date.now() - roll.last >= o.rust * 60000) {
-    const files = roll.files.map((f) => path.join(inbox, f)).filter((f) => fs.existsSync(f));
-    log(`Rol klaar: ${files.length} frames met één kleurbalans…`);
-    if (o.burke) {
-      const scans = files.map((f) => burke.analyzeScan(f, BURKE));
-      const rollH = burke.mergeHist(scans.map((s) => s.H));
-      for (const scan of scans) {
-        writeBurke(scan, rollH, outDir);
-        log(`  ${path.basename(scan.file)} opnieuw`);
-      }
-    } else {
-      const each = files.map((f) => ({ file: f, ...analysis(f, o) }));
-      const rollHist = NC.mergeHistograms(each.map((e) => e.hist));
-      for (const e of each) {
-        render(e.file, NC.analyze(rollHist, e.base), o, outDir);
-        log(`  ${path.basename(e.file)} opnieuw`);
-      }
+  if (!o.rol || !roll || roll.balanced || Date.now() - roll.last < o.rust * 60000) return;
+  const files = (isRoll ? scansIn(dir) : roll.files.map((f) => path.join(dir, f)))
+    .filter((f) => fs.existsSync(f) && !state.failed[path.basename(f)]);
+  if (files.length < 2) { roll.balanced = true; writeState(stateFile, state); return; }
+  log(`Rol klaar (${rollName}): ${files.length} frames met één kleurbalans…`);
+  if (o.burke) {
+    const scans = files.map((f) => burke.analyzeScan(f, BURKE));
+    const rollH = burke.mergeHist(scans.map((sc) => sc.H));
+    for (const scan of scans) {
+      writeBurke(scan, rollH, outDir);
+      log(`  ${path.basename(scan.file)} opnieuw`);
     }
-    roll.balanced = true;
-    writeState(stateFile, state);
-    notify(o, 'Rol klaar', `${files.length} foto's met één kleurbalans in Positief`);
+  } else {
+    const each = files.map((f) => ({ file: f, ...analysis(f, o) }));
+    const rollHist = NC.mergeHistograms(each.map((e) => e.hist));
+    for (const e of each) {
+      render(e.file, NC.analyze(rollHist, e.base), o, outDir);
+      log(`  ${path.basename(e.file)} opnieuw`);
+    }
   }
+  roll.balanced = true;
+  writeState(stateFile, state);
+  notify(o, 'Rol klaar', `${rollName}: ${files.length} foto's met één kleurbalans in Positief`);
+}
+
+/**
+ * Een rol kan in zijn mapnaam zeggen wat voor film het is: "(zw)" voor zwart-wit, "(positief)" voor
+ * al positieve scans. Die worden gewoon omgezet naar TIFF en JPEG; Burke's lagen zijn voor kleurnegatief.
+ */
+function folderOptions(dir, o) {
+  const name = path.basename(dir).toLowerCase();
+  const zw = /\((zw|bw)\)/.test(name), positief = /\(positie[f]?\)/.test(name);
+  if (!zw && !positief) return o;
+  return { ...o, zw: o.zw || zw, positief: o.positief || positief, burke: false };
+}
+
+async function main() {
+  const o = parseArgs(process.argv.slice(2));
+  const root = path.resolve(o.inbox.replace(/^~(?=\/|$)/, process.env.HOME || '~'));
+  // Op een externe schijf die niet is aangesloten: niets te doen, en niets te melden.
+  const volume = root.match(/^\/Volumes\/[^/]+/);
+  if (volume && !fs.existsSync(volume[0])) return;
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) fail(`${root} is geen map`);
+  try { fs.readdirSync(root); } catch (e) {
+    if (e.code === 'EPERM' || e.code === 'EACCES') {
+      fail(`macOS geeft geen toegang tot ${root}. Geef node toegang tot de volledige schijf: `
+        + 'Systeeminstellingen > Privacy en beveiliging > Volledige schijftoegang, + , kies ' + process.execPath);
+    }
+    throw e;
+  }
+
+  // Eén tegelijk: een tweede start (de taak en de hand) stopt meteen.
+  const lock = path.join(root, '.scan-inbox.lock');
+  try {
+    fs.writeFileSync(lock, String(process.pid), { flag: 'wx' });
+  } catch {
+    const pid = Number(fs.readFileSync(lock, 'utf8'));
+    let alive = false;
+    try { process.kill(pid, 0); alive = true; } catch { /* niet meer actief */ }
+    if (alive) return;
+    fs.writeFileSync(lock, String(process.pid));
+  }
+  const unlock = () => { try { fs.rmSync(lock, { force: true }); } catch { /* al weg */ } };
+  process.on('exit', unlock);
+
+  // Scans los in de map: één inbox. Submappen met scans: elk een rol.
+  if (scansIn(root).length) await processFolder(root, o, false);
+  for (const dir of rollFolders(root)) await processFolder(dir, folderOptions(dir, o), true);
 }
 
 main().catch((e) => fail(e.stack || e.message));

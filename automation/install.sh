@@ -96,8 +96,8 @@ launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
 launchctl bootstrap "$DOMAIN" "$PLIST"
 
 echo "scan-inbox staat aan."
-echo "  Inbox:     $INBOX"
-echo "  Positief:  $INBOX/Positief"
+echo "  Map:       $INBOX"
+echo "  Een map per rol? Maak per rol een submap; die krijgt zijn eigen Positief."
 echo "  Logboek:   $LOG"
 echo
 echo "Zet in VueScan de uitvoermap op de inbox (zie de tab Omzetten op de site)."
