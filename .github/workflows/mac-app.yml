@@ -57,9 +57,14 @@ jobs:
       - name: Take a screenshot
         continue-on-error: true
         run: |
+          open "mac/build/Roll Converter.app"
+          sleep 8
+          screencapture -x screenshot-start.png
+          osascript -e 'quit app "Roll Converter"' || true
+          sleep 2
           open "mac/build/Roll Converter.app" --args "$RUNNER_TEMP/Test roll"
           sleep 8
-          screencapture -x screenshot.png
+          screencapture -x screenshot-roll.png
           osascript -e 'quit app "Roll Converter"' || true
 
       - name: Package the app
@@ -70,7 +75,7 @@ jobs:
           name: Roll-Converter
           path: |
             Roll-Converter.zip
-            screenshot.png
+            screenshot-*.png
           retention-days: 30
 
       - name: Publish as the latest release
