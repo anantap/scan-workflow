@@ -1,7 +1,8 @@
 name: Mac app
 
-# Builds Roll Converter on a Mac, converts a test roll with it, checks the files, and keeps the
-# finished app as a download (Actions › this run › Artifacts › Roll-Converter).
+# Builds Roll Converter on a Mac, converts a test roll with it, checks the files, and publishes the
+# finished app as the latest GitHub release (tag build-<run number>). The app checks that release and
+# updates itself.
 on:
   push:
     paths:
@@ -20,6 +21,8 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +32,7 @@ jobs:
       - name: Build the app and the command-line tool
         run: |
           xcodebuild -version
-          ./mac/build.sh
+          BUILD_NUMBER=${{ github.run_number }} ./mac/build.sh
 
       - name: Convert a test roll
         run: |
@@ -48,6 +51,16 @@ jobs:
           ls "$APP/Contents/Resources"
           test -f "$APP/Contents/Resources/AppIcon.icns"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP/Contents/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")" = "${{ github.run_number }}"
+          ls "$APP/Contents/Resources" | grep -q 'Geist-Regular.ttf'
+
+      - name: Take a screenshot
+        continue-on-error: true
+        run: |
+          open "mac/build/Roll Converter.app" --args "$RUNNER_TEMP/Test roll"
+          sleep 8
+          screencapture -x screenshot.png
+          osascript -e 'quit app "Roll Converter"' || true
 
       - name: Package the app
         run: ditto -c -k --keepParent "mac/build/Roll Converter.app" Roll-Converter.zip
@@ -55,5 +68,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Roll-Converter
-          path: Roll-Converter.zip
+          path: |
+            Roll-Converter.zip
+            screenshot.png
           retention-days: 30
+
+      - name: Publish as the latest release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" Roll-Converter.zip \
+            --target "$GITHUB_SHA" --latest \
+            --title "Roll Converter, build ${{ github.run_number }}" \
+            --notes "$(git log -1 --pretty=%s) (${GITHUB_REF_NAME})"

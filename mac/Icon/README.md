@@ -1,3 +1,5 @@
-The app icon: `icon.svg` is the source. A film frame, its top left still the negative (orange mask,
-inverted colours) and its bottom right the positive. To change it, edit the SVG, render it at
-1024 × 1024 and export the sizes in `../App/Assets.xcassets/AppIcon.appiconset`.
+The app icon, in the CPC2027 look: the cream mist, the soft orange blob, and a frosted-glass film
+strip across it with the blob showing through its frame. `make_icon.py` draws it (needs Pillow) and
+writes `icon-1024.png` and every size in `../App/Assets.xcassets/AppIcon.appiconset`:
+
+    python3 mac/Icon/make_icon.py

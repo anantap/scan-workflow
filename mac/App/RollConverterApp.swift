@@ -6,14 +6,24 @@ import UniformTypeIdentifiers
 struct RollConverterApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = RollModel()
+    @StateObject private var updater = Updater.shared
+
+    init() {
+        Theme.registerFonts()
+    }
 
     var body: some Scene {
         Window("Roll Converter", id: "main") {
-            ContentView(model: model)
-                .frame(minWidth: 560, minHeight: 560)
+            ContentView(model: model, updater: updater)
+                .frame(minWidth: 560, minHeight: 640)
+                .preferredColorScheme(.light)
         }
-        .defaultSize(width: 640, height: 680)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 680, height: 800)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { updater.check() }
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Open Roll…") { model.chooseFolder() }
                     .keyboardShortcut("o")
@@ -23,8 +33,19 @@ struct RollConverterApp: App {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.appearance = NSAppearance(named: .aqua)
+        Updater.shared.start()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    /// A downloaded update goes in place when the app quits, so the next start is the new version.
+    func applicationWillTerminate(_ notification: Notification) {
+        Updater.shared.install(relaunch: false)
+    }
 }
 
 // MARK: - Model
@@ -127,14 +148,31 @@ final class RollModel: ObservableObject {
 
 struct ContentView: View {
     @ObservedObject var model: RollModel
+    @ObservedObject var updater: Updater
     @State private var dropTargeted = false
 
     var body: some View {
-        Group {
-            if model.folder == nil {
-                dropZone
-            } else {
-                rollView
+        ZStack {
+            MistBackground()
+            VStack(spacing: 16) {
+                UpdateCard(updater: updater)
+                if model.folder == nil {
+                    DropCard(model: model, targeted: dropTargeted)
+                } else {
+                    RollScreen(model: model)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 36)
+            .padding(.bottom, 24)
+        }
+        .font(Theme.m)
+        .foregroundStyle(Theme.text)
+        .tint(Theme.accent)
+        .onAppear {
+            // A roll folder given when the app is started:  open -a "Roll Converter" --args <folder>
+            if let path = CommandLine.arguments.dropFirst().first(where: { !$0.hasPrefix("-") }) {
+                model.open(URL(fileURLWithPath: path, isDirectory: true))
             }
         }
         .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
@@ -146,161 +184,328 @@ struct ContentView: View {
             return true
         }
     }
+}
 
-    private var dropZone: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "film.stack")
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(.secondary)
-            Text("Drop a roll folder here")
-                .font(.title2.weight(.semibold))
-            Text("Every scan in it becomes a positive: a 16-bit TIFF for Compositor, Photoshop and the like, and a JPEG.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: 360)
-            Button("Choose Roll…") { model.chooseFolder() }
-                .controlSize(.large)
-                .keyboardShortcut("o")
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(dropTargeted ? Color.accentColor : Color.secondary.opacity(0.35),
-                              style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                .padding(16)
-        )
-    }
+/// A two-line title: the second line dim, as on the CPC cards.
+struct TwoTone: View {
+    let first: String
+    let second: String?
 
-    private var rollView: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-            Divider()
-            settings
-            Divider()
-            frameList
-            Divider()
-            footer
+            Text(first).foregroundStyle(Theme.text)
+            if let second { Text(second).foregroundStyle(Theme.dim) }
         }
+        .font(Theme.l)
+        .tracking(-0.36)
+        .lineSpacing(8)
     }
+}
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.folder?.lastPathComponent ?? "")
-                    .font(.title3.weight(.semibold))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text("\(model.frames.count) scan\(model.frames.count == 1 ? "" : "s")")
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Choose Another Roll…") { model.chooseFolder() }
-                .disabled(model.running)
-        }
-        .padding(16)
-    }
+// MARK: Update
 
-    private var settings: some View {
-        Form {
-            Picker("Film", selection: $model.options.film) {
-                ForEach(Film.allCases) { Text($0.title).tag($0) }
-            }
-            Toggle("One colour balance for the whole roll", isOn: $model.options.rollBalance)
-            LabeledContent("Make") {
+struct UpdateCard: View {
+    @ObservedObject var updater: Updater
+
+    var body: some View {
+        if case .ready(let build) = updater.state {
+            HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle("16-bit TIFF (Compositor, Photoshop, Lightroom…)", isOn: $model.options.tiff)
-                    Toggle("JPEG, to view and share", isOn: $model.options.jpeg)
-                    Toggle("Compositor project with Alex Burke's layers", isOn: $model.options.compositor)
-                        .disabled(model.options.film != .color)
-                }
-            }
-            LabeledContent("Save to") {
-                HStack {
-                    Text(model.options.output == nil ? "Positief folder inside the roll" : (model.outputFolder?.path ?? ""))
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if model.options.output != nil {
-                        Button("Reset") { model.options.output = nil }
-                    }
-                    Button("Choose…") { model.chooseOutput() }
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .disabled(model.running)
-        .frame(maxHeight: 250)
-    }
-
-    private var frameList: some View {
-        List(model.frames) { frame in
-            HStack(spacing: 10) {
-                icon(for: frame.state)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(frame.url.lastPathComponent)
-                    if case .failed(let message) = frame.state {
-                        Text(message).font(.caption).foregroundStyle(.red)
-                    } else if let note = frame.note {
-                        Text(note).font(.caption).foregroundStyle(.orange)
-                    }
+                    Text("Update").font(Theme.s).foregroundStyle(Theme.accentText)
+                    Text("Build \(build) is ready").font(Theme.font(16))
+                    Text(updater.installProblem ?? "It goes in place when you restart or quit the app.")
+                        .font(Theme.s).foregroundStyle(Theme.dim)
                 }
                 Spacer()
-                Text(label(for: frame.state))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if updater.installProblem == nil {
+                    Button("Restart") { updater.restartNow() }.buttonStyle(.chip(.primary))
+                }
             }
+            .padding(20)
+            .glass()
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
-        .listStyle(.inset)
+    }
+}
+
+// MARK: Start
+
+struct DropCard: View {
+    @ObservedObject var model: RollModel
+    let targeted: Bool
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Blob(size: 420).offset(x: 80, y: -60)
+            VStack(alignment: .leading, spacing: 0) {
+                TwoTone(first: "Drop a roll folder here", second: "and every scan becomes a positive.")
+                Spacer()
+                Text("A 16-bit TIFF for Compositor, Photoshop and the like, and a JPEG to share. Black and white and slides too.")
+                    .font(Theme.font(16))
+                    .foregroundStyle(Theme.dim)
+                    .lineSpacing(6)
+                    .frame(maxWidth: 380, alignment: .leading)
+                    .padding(.bottom, 24)
+                Button("Choose Roll…") { model.chooseFolder() }
+                    .buttonStyle(.chip(.primary, height: 56))
+                    .keyboardShortcut("o")
+                if let error = model.error {
+                    Text(error).font(Theme.s).foregroundStyle(Theme.error).padding(.top, 12)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .glass(.white.opacity(0.35))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Theme.accent.opacity(targeted ? 1 : 0), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+        )
+        .animation(.easeOut(duration: 0.15), value: targeted)
+    }
+}
+
+// MARK: Roll
+
+struct RollScreen: View {
+    @ObservedObject var model: RollModel
+
+    var body: some View {
+        VStack(spacing: 16) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    SunCard(model: model)
+                    section("Settings")
+                    SettingsCard(model: model)
+                    section("Scans")
+                    FramesCard(model: model)
+                }
+                .padding(.bottom, 8)
+            }
+            .scrollIndicators(.never)
+            Footer(model: model)
+        }
     }
 
-    private var footer: some View {
-        HStack(spacing: 12) {
-            if model.running {
-                ProgressView(value: Double(model.done + model.failed), total: Double(max(1, model.frames.count)))
-                    .frame(maxWidth: 220)
-                Text("\(model.done) of \(model.frames.count)")
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            } else if let error = model.error {
-                Text(error).foregroundStyle(.red)
-            } else if model.finishedFolder != nil {
-                Text(model.failed == 0 ? "Done: \(model.done) positives" : "Done: \(model.done) positives, \(model.failed) failed")
-                Button("Show in Finder") { model.revealOutput() }
-            } else {
-                Text("Existing files with the same name in the output folder are replaced.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private func section(_ text: String) -> some View {
+        Text(text).font(Theme.s).tracking(0.12).padding(.top, 8).padding(.leading, 4)
+    }
+}
+
+/// The big card: the roll, its film, and a number in Geist Pixel, over the blob.
+struct SunCard: View {
+    @ObservedObject var model: RollModel
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Blob(size: 320).offset(x: 64, y: -48)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
+                    TwoTone(first: model.folder?.lastPathComponent ?? "", second: model.options.film.title)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 16)
+                    Button("Other Roll…") { model.chooseFolder() }
+                        .buttonStyle(.chip(.plain))
+                        .disabled(model.running)
+                }
+                Spacer(minLength: 32)
+                HStack(alignment: .lastTextBaseline, spacing: 10) {
+                    Text(bigNumber)
+                        .font(Theme.pixel(76))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text(bigLabel).font(Theme.l).foregroundStyle(Theme.dim)
+                }
+                DotField(frames: model.frames)
+                    .padding(.top, 16)
             }
-            Spacer()
-            Button("Convert") { model.convert() }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(model.running || model.frames.isEmpty || !model.options.hasOutput)
+            .padding(24)
         }
-        .padding(16)
+        .frame(minHeight: 300)
+        .glass(.white.opacity(0.35))
+    }
+
+    private var bigNumber: String {
+        if model.running || model.finishedFolder != nil { return "\(model.done)" }
+        return "\(model.frames.count)"
+    }
+
+    private var bigLabel: String {
+        if model.running { return "of \(model.frames.count)" }
+        if model.finishedFolder != nil { return model.done == 1 ? "positive" : "positives" }
+        return model.frames.count == 1 ? "scan" : "scans"
+    }
+}
+
+/// A dot per frame: orange when done, peach while it's being worked on, a ring when it failed.
+struct DotField: View {
+    let frames: [FrameRow]
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.fixed(12), spacing: 6), count: 18), alignment: .leading, spacing: 6) {
+            ForEach(frames) { frame in
+                dot(frame.state).frame(width: 12, height: 12)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: frames.map(\.state))
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder
-    private func icon(for state: FrameState) -> some View {
+    private func dot(_ state: FrameState) -> some View {
         switch state {
-        case .waiting: Image(systemName: "circle").foregroundStyle(.tertiary)
-        case .measuring, .converting: ProgressView().controlSize(.small)
-        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .failed: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+        case .waiting: Circle().fill(Theme.dotRest)
+        case .measuring, .converting: Circle().fill(Theme.dotNext)
+        case .done: Circle().fill(Theme.accent)
+        case .failed: Circle().strokeBorder(Theme.dotRing, lineWidth: 1.5)
         }
+    }
+}
+
+struct SettingsCard: View {
+    @ObservedObject var model: RollModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            row("Film") {
+                ForEach(Film.allCases) { film in
+                    ChoiceChip(title: film.short, on: model.options.film == film) { model.options.film = film }
+                }
+            }
+            divider
+            Toggle(isOn: $model.options.rollBalance) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("One colour balance for the roll")
+                    Text("Every frame gets the same white point and colour, so the roll matches.")
+                        .font(Theme.s).foregroundStyle(Theme.dim)
+                }
+            }
+            .toggleStyle(AccentToggleStyle())
+            .padding(.vertical, 16)
+            divider
+            row("Make") {
+                ChoiceChip(title: "16-bit TIFF", on: model.options.tiff) { model.options.tiff.toggle() }
+                ChoiceChip(title: "JPEG", on: model.options.jpeg) { model.options.jpeg.toggle() }
+                ChoiceChip(title: "Compositor project", on: model.options.compositor && model.options.film == .color) {
+                    model.options.compositor.toggle()
+                }
+                .disabled(model.options.film != .color)
+                .help("A Compositor project with Alex Burke's layers, for colour negatives")
+            }
+            divider
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Save to")
+                    Text(model.options.output == nil ? "A Positief folder inside the roll" : (model.outputFolder?.path ?? ""))
+                        .font(Theme.s)
+                        .foregroundStyle(Theme.dim)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                }
+                Spacer(minLength: 8)
+                if model.options.output != nil {
+                    Button("Reset") { model.options.output = nil }.buttonStyle(.chip(.plain, height: 32))
+                }
+                Button("Choose…") { model.chooseOutput() }.buttonStyle(.chip(.plain, height: 32))
+            }
+            .padding(.vertical, 16)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 4)
+        .glass()
+        .disabled(model.running)
+    }
+
+    private var divider: some View { Rectangle().fill(Theme.line).frame(height: 1) }
+
+    private func row<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 8) {
+            Text(title).frame(width: 64, alignment: .leading)
+            content()
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 16)
+    }
+}
+
+struct FramesCard: View {
+    @ObservedObject var model: RollModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(model.frames.enumerated()), id: \.element.id) { index, frame in
+                if index > 0 { Rectangle().fill(Theme.line).frame(height: 1) }
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(String(format: "%02d", index + 1))
+                        .font(Theme.pixel(14))
+                        .foregroundStyle(frame.state == .done ? Theme.accentText : Theme.faint)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(frame.url.lastPathComponent).lineLimit(1).truncationMode(.middle)
+                        if case .failed(let message) = frame.state {
+                            Text(message).font(Theme.s).foregroundStyle(Theme.error)
+                        } else if let note = frame.note {
+                            Text(note).font(Theme.s).foregroundStyle(Theme.accentText)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Text(label(for: frame.state)).font(Theme.s).foregroundStyle(Theme.dim)
+                }
+                .padding(.vertical, 12)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 4)
+        .glass()
     }
 
     private func label(for state: FrameState) -> String {
         switch state {
         case .waiting: ""
-        case .measuring: "Measuring"
-        case .converting: "Converting"
+        case .measuring: "Measuring…"
+        case .converting: "Converting…"
         case .done: "Done"
         case .failed: "Failed"
+        }
+    }
+}
+
+struct Footer: View {
+    @ObservedObject var model: RollModel
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Group {
+                if model.running {
+                    Text("\(model.done) of \(model.frames.count) done…")
+                } else if let error = model.error {
+                    Text(error).foregroundStyle(Theme.error)
+                } else if model.finishedFolder != nil {
+                    Text(model.failed == 0 ? "Done: \(model.done) positives" : "Done: \(model.done) positives, \(model.failed) failed")
+                } else {
+                    Text("Files with the same name in the output folder are replaced.").foregroundStyle(Theme.dim)
+                }
+            }
+            .font(Theme.s)
+            .lineLimit(2)
+            Spacer(minLength: 8)
+            if model.finishedFolder != nil && !model.running {
+                Button("Show in Finder") { model.revealOutput() }.buttonStyle(.chip(.plain, height: 56))
+            }
+            Button(model.running ? "Converting…" : "Convert") { model.convert() }
+                .buttonStyle(.chip(.primary, height: 56))
+                .keyboardShortcut(.defaultAction)
+                .disabled(model.running || model.frames.isEmpty || !model.options.hasOutput)
+        }
+    }
+}
+
+extension Film {
+    var short: String {
+        switch self {
+        case .color: "Colour"
+        case .bw: "Black & white"
+        case .positive: "Positive"
         }
     }
 }

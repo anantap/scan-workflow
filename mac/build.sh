@@ -1,5 +1,6 @@
 #!/bin/bash
 # Builds "Roll Converter.app" (and the rollconvert tool) into mac/build/.
+# BUILD_NUMBER sets the build (CI uses its run number; the app updates itself to newer builds).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -13,7 +14,7 @@ command -v xcodegen >/dev/null 2>&1 || { echo "XcodeGen is missing. Install it w
 xcodegen generate --quiet
 for scheme in RollConverter rollconvert; do
   xcodebuild -project RollConverter.xcodeproj -scheme "$scheme" -configuration Release \
-    -derivedDataPath build/DerivedData -quiet build
+    -derivedDataPath build/DerivedData -quiet build CURRENT_PROJECT_VERSION="${BUILD_NUMBER:-1}"
 done
 
 PRODUCTS="build/DerivedData/Build/Products/Release"

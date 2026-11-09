@@ -14,10 +14,18 @@ It runs the same maths as the web converter and the scan inbox (`converter-core.
 
 ## Getting the app
 
-**Without Xcode:** every push builds the app on GitHub. Open the repository's **Actions** tab, pick the
-latest **Mac app** run, and download **Roll-Converter** under Artifacts. Unzip it and drag
-`Roll Converter.app` to Applications. The first time, right-click it and choose **Open**: it's signed
-for your own use, not by an Apple developer account.
+**Without Xcode:** every push builds the app on GitHub and publishes it as the latest release.
+Download it here:
+
+https://github.com/anantap/scan-workflow/releases/latest/download/Roll-Converter.zip
+
+Unzip it and drag `Roll Converter.app` to Applications. The first time, right-click it and choose
+**Open**: it's signed for your own use, not by an Apple developer account.
+
+**Updates come by themselves.** At launch and every six hours the app looks for a newer release,
+downloads it in the background and says so at the top of the window: **Restart** puts it in place
+right away, otherwise it goes in place when you quit. *Roll Converter › Check for Updates…* looks now.
+For this, keep the app in Applications (or another folder you can write to).
 
 **With Xcode** (and `brew install xcodegen`):
 
@@ -41,7 +49,9 @@ Options: `--out <folder>`, `--film color|bw|positive`, `--no-roll`, `--no-tiff`,
 
 | | |
 |---|---|
-| `App/` | the window (SwiftUI) |
+| `App/` | the window (SwiftUI), in the look of cpc2027.vercel.app (`Theme.swift`), and the updater |
+| `App/Fonts/` | Geist and Geist Pixel (SIL Open Font License), from cpc2027 |
+| `Icon/` | `make_icon.py` draws the app icon |
 | `Core/Engine.swift` | runs the converter's scripts in JavaScriptCore |
 | `Core/RollJob.swift` | finds a roll's scans and converts them: measure all, then convert each |
 | `Core/ImageFiles.swift` | writes TIFF, JPEG and Compositor projects with ImageIO |
