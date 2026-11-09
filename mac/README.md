@@ -3,6 +3,9 @@
 A Mac app that converts a scanned roll in one go: point it at the roll's folder and every scan in it
 (DNG, TIFF, JPEG or PNG) becomes a positive.
 
+While it works, the roll shows as a grid of frames: negatives until they're converted, then
+positives.
+
 Or drop just a few scans on it (a rescan, a test frame): only those are converted, into `Positief`
 next to them, with one balance for them together.
 

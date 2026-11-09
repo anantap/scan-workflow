@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 enum Film: String, CaseIterable, Identifiable {
@@ -122,6 +123,8 @@ enum Roll {
 /// Converts a roll: measures every frame, then converts each one, with one balance for the roll.
 final class RollConverter {
     private let engine: Engine
+    /// Called with a small picture of each converted frame (its index and the positive), if set.
+    var preview: ((Int, CGImage) -> Void)?
 
     init(engine: Engine) {
         self.engine = engine
@@ -170,8 +173,9 @@ final class RollConverter {
                     let rendered = try engine.render(frame.url, id: frame.analysis.id, film: options.film, useRoll: useRoll,
                                                      layerIDs: ids, documentID: compositor ? UUID().uuidString : nil)
                     let name = frame.url.deletingPathExtension().lastPathComponent
-                    if options.tiff || options.jpeg {
+                    if options.tiff || options.jpeg || preview != nil {
                         let image = try ImageFiles.image16(rendered.positive, width: rendered.width, height: rendered.height)
+                        if let preview, let small = ImageFiles.thumbnail(of: image, size: 480) { preview(frame.index, small) }
                         if options.tiff {
                             try ImageFiles.writeTIFF(image, to: output.appendingPathComponent("\(name).tif"), dpi: rendered.dpi)
                         }

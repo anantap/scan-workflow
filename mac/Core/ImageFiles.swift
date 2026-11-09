@@ -34,6 +34,30 @@ enum ImageFiles {
         return (data, width, height)
     }
 
+    // MARK: - Thumbnails
+
+    /// A small picture of a scan file, as macOS reads it (DNG included), the longest side `size` pixels.
+    static func thumbnail(of url: URL, size: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: size,
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    }
+
+    /// The image made smaller, its longest side `size` pixels, in 8-bit sRGB.
+    static func thumbnail(of image: CGImage, size: Int) -> CGImage? {
+        let scale = min(1, Double(size) / Double(max(image.width, image.height)))
+        let width = max(1, Int(Double(image.width) * scale)), height = max(1, Int(Double(image.height) * scale))
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: sRGB, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        context.interpolationQuality = .medium
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()
+    }
+
     // MARK: - Writing
 
     /// 16-bit sRGB RGB pixels (little-endian, as the converter makes them) as an image.

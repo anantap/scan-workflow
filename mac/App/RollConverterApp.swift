@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -54,6 +55,9 @@ struct FrameRow: Identifiable {
     let url: URL
     var state: FrameState = .waiting
     var note: String?
+    /// Small pictures: the scan as it is (the negative), and the positive once it's converted.
+    var negative: CGImage?
+    var positive: CGImage?
     var id: URL { url }
 }
 
@@ -112,6 +116,34 @@ final class RollModel: ObservableObject {
         options.film = Roll.film(forFolder: roll) ?? .color
         options.output = nil
         finishedFolder = nil
+        loadThumbnails()
+    }
+
+    /// Reads a small picture of each scan, a few at a time, in the background.
+    private func loadThumbnails() {
+        let urls = frames.map(\.url)
+        Task.detached(priority: .utility) { [weak self] in
+            let load = { (url: URL) async in
+                let image = ImageFiles.thumbnail(of: url, size: 480)
+                await MainActor.run {
+                    guard let self, let index = self.frames.firstIndex(where: { $0.url == url }) else { return }
+                    self.frames[index].negative = image
+                }
+            }
+            await withTaskGroup(of: Void.self) { group in
+                var next = 0
+                while next < min(4, urls.count) {
+                    let url = urls[next]
+                    next += 1
+                    group.addTask { await load(url) }
+                }
+                while await group.next() != nil, next < urls.count {
+                    let url = urls[next]
+                    next += 1
+                    group.addTask { await load(url) }
+                }
+            }
+        }
     }
 
     func chooseOutput() {
@@ -129,14 +161,25 @@ final class RollModel: ObservableObject {
         running = true
         finishedFolder = nil
         error = nil
-        for index in frames.indices { frames[index].state = .waiting; frames[index].note = nil }
+        for index in frames.indices {
+            frames[index].state = .waiting
+            frames[index].note = nil
+            frames[index].positive = nil
+        }
         let options = self.options
         let files = frames.map(\.url)
         let scripts = [Bundle.main.resourceURL].compactMap { $0 }
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let engine = try Engine(scriptFolders: scripts)
-                let output = try RollConverter(engine: engine).run(files: files, folder: folder, options: options) { index, state, note in
+                let converter = RollConverter(engine: engine)
+                converter.preview = { index, image in
+                    Task { @MainActor in
+                        guard let self, self.frames.indices.contains(index) else { return }
+                        self.frames[index].positive = image
+                    }
+                }
+                let output = try converter.run(files: files, folder: folder, options: options) { index, state, note in
                     Task { @MainActor in
                         guard let self, self.frames.indices.contains(index) else { return }
                         self.frames[index].state = state
@@ -424,12 +467,12 @@ struct FramesCard: View {
             Rectangle().fill(p.line).frame(height: 1)
             ScrollViewReader { scroller in
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 14)], spacing: 16) {
                         ForEach(Array(model.frames.enumerated()), id: \.element.id) { index, frame in
-                            if index > 0 { Rectangle().fill(p.line).frame(height: 1) }
-                            row(index, frame).id(index)
+                            FrameTile(index: index, frame: frame).id(index)
                         }
                     }
+                    .padding(.vertical, 16)
                 }
                 .scrollIndicators(.never)
                 .onChange(of: current) { index in
@@ -461,33 +504,86 @@ struct FramesCard: View {
         }
         return "Each scan is measured first, then converted. Files with the same name are replaced."
     }
+}
 
-    private func row(_ index: Int, _ frame: FrameRow) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Text(String(format: "%02d", index + 1))
-                .font(Theme.pixel(14))
-                .foregroundStyle(frame.state == .done ? p.accentText : p.faint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(frame.url.lastPathComponent).lineLimit(1).truncationMode(.middle)
-                if case .failed(let message) = frame.state {
-                    Text(message).font(Theme.s).foregroundStyle(p.error)
-                } else if let note = frame.note {
-                    Text(note).font(Theme.s).foregroundStyle(p.accentText)
+/// A frame: the negative while it waits, the positive once it's converted.
+struct FrameTile: View {
+    @Environment(\.palette) private var p
+    let index: Int
+    let frame: FrameRow
+
+    private var working: Bool { frame.state == .measuring || frame.state == .converting }
+    private var converted: Bool { frame.state == .done && frame.positive != nil }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ZStack {
+                Rectangle().fill(p.dotRest)
+                picture(frame.negative)
+                picture(frame.positive).opacity(converted ? 1 : 0)
+                if working { Shimmer() }
+                if case .failed = frame.state {
+                    Rectangle().fill(.black.opacity(0.35))
+                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 22)).foregroundStyle(.white)
                 }
             }
-            Spacer(minLength: 8)
-            Text(label(for: frame.state)).font(Theme.s).foregroundStyle(p.dim)
+            .aspectRatio(3 / 2, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .animation(.easeInOut(duration: 0.6), value: converted)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(String(format: "%02d", index + 1))
+                    .font(Theme.pixel(13))
+                    .foregroundStyle(frame.state == .done ? p.accentText : p.faint)
+                Text(frame.url.lastPathComponent)
+                    .font(Theme.s)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            if case .failed(let message) = frame.state {
+                Text(message).font(Theme.s).foregroundStyle(p.error).lineLimit(2)
+            } else if let note = frame.note {
+                Text(note).font(Theme.s).foregroundStyle(p.accentText).lineLimit(2)
+            }
         }
-        .padding(.vertical, 12)
+        .help(help)
     }
 
-    private func label(for state: FrameState) -> String {
-        switch state {
-        case .waiting: ""
-        case .measuring: "Measuring…"
-        case .converting: "Converting…"
-        case .done: "Done"
-        case .failed: "Failed"
+    @ViewBuilder
+    private func picture(_ image: CGImage?) -> some View {
+        if let image {
+            Image(decorative: image, scale: 1)
+                .resizable()
+                .scaledToFill()
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                .clipped()
+        }
+    }
+
+    private var help: String {
+        switch frame.state {
+        case .failed(let message): "\(frame.url.lastPathComponent): \(message)"
+        default: frame.note.map { "\(frame.url.lastPathComponent): \($0)" } ?? frame.url.lastPathComponent
+        }
+    }
+}
+
+/// A light sweep across the frame being converted.
+struct Shimmer: View {
+    @Environment(\.palette) private var p
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var moving = false
+
+    var body: some View {
+        GeometryReader { geo in
+            LinearGradient(colors: [.clear, p.paper.opacity(0.35), .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: geo.size.width * 0.6)
+                .offset(x: moving ? geo.size.width : -geo.size.width * 0.6)
+        }
+        .opacity(reduceMotion ? 0 : 1)
+        .overlay(reduceMotion ? p.paper.opacity(0.18) : .clear)
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) { moving = true }
         }
     }
 }
