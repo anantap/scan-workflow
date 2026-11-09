@@ -7,7 +7,7 @@
  *   naam.tif   16-bit, om verder te bewerken (Lightroom, Foto's, Affinity…)
  *   naam.jpg   kwaliteit 92, om te bekijken en te delen
  *
- * Zodra er een paar minuten geen nieuwe scan bijkomt, is de rol klaar: dan worden alle
+ * Zodra er een kwartier geen nieuwe scan bijkomt, is de rol klaar: dan worden alle
  * frames van die rol opnieuw omgezet met één kleurbalans, zodat ze bij elkaar passen.
  *
  * Bedoeld om te draaien als achtergrondtaak (zie install.sh), maar met de hand kan ook:
@@ -53,13 +53,14 @@ Opties:
   --burke        in plaats van TIFF en JPEG een Compositor-project per scan met
                   Alex Burke's lagen (inversie, filmbasis, curven), om bij te stellen
   --geen-rol      elk frame op zichzelf laten, geen kleurbalans per rol
-  --rust <min>    minuten zonder nieuwe scan voordat de rol klaar heet (standaard 3)
+  --rust <min>    minuten zonder nieuwe scan voordat de rol klaar heet (standaard 15:
+                  ruim genoeg om een filmhouder te wisselen)
   --stil          geen meldingen
   -h, --help      deze uitleg
 `;
 
 function parseArgs(argv) {
-  const o = { inbox: null, zw: false, positief: false, jpg: true, rol: true, rust: 3, stil: false, burke: false };
+  const o = { inbox: null, zw: false, positief: false, jpg: true, rol: true, rust: 15, stil: false, burke: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-h' || a === '--help') { process.stdout.write(HELP); process.exit(0); }

@@ -609,7 +609,7 @@ for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
       <ul>
         <li>VueScan <strong>scant alleen</strong> en bewaart raw DNG's in een vaste map: de <strong>inbox</strong></li>
         <li>Een achtergrondtaak op de Mac zet elke nieuwe scan vanzelf om naar een positief in <code>Inbox/Positief</code>: een 16-bit TIFF om te bewerken en een JPEG</li>
-        <li>Komt er een paar minuten niets bij, dan is de rol klaar: alle frames krijgen samen één kleurbalans en je krijgt een melding</li>
+        <li>Komt er een kwartier niets bij, dan is de rol klaar: alle frames krijgen samen één kleurbalans en je krijgt een melding</li>
       </ul>
       <div class="note">Eenmalig instellen (stap 02–04), daarna per rol alleen stap 05.</div>
     </div>
@@ -664,7 +664,8 @@ git clone -b claude/deploy-film-scanner-vercel-u9PuX https://github.com/anantap/
       <ul>
         <li>Scan de rol zoals altijd</li>
         <li>Open <code>~/Scans/Inbox/Positief</code>: de foto's verschijnen terwijl je scant</li>
-        <li>Na de laatste scan en een paar minuten rust: melding <strong>Rol klaar</strong></li>
+        <li>Wissel de filmhouders vlot: komt er een kwartier geen scan bij, dan heet de rol klaar</li>
+        <li>Een kwartier na de laatste scan: melding <strong>Rol klaar</strong></li>
         <li>Verplaats daarna de DNG's en de map Positief naar je archief, zodat de inbox leeg is voor de volgende rol</li>
       </ul>
       <div class="note">Een frame opnieuw laten omzetten? Gooi zijn TIFF in Positief weg. Iets mis? Kijk in <code>~/Library/Logs/scan-inbox.log</code>.</div>
