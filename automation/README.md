@@ -1,5 +1,8 @@
 # scan-inbox: negatieven vanzelf omzetten
 
+> **Niet meer nodig:** de Mac-app Roll Converter (`mac/`) doet dit nu: sleep de rolmap erop en klik op Convert.
+> Staat scan-inbox nog aan, zet het dan uit met `automation/install.sh --verwijder`, anders wordt elke rol twee keer omgezet.
+
 VueScan scant, de Mac zet om. Elke nieuwe scan in de inbox-map wordt vanzelf een positief,
 met dezelfde omzetting als de Negatief Converter:
 
