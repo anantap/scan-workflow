@@ -1,51 +1,51 @@
-# Negatief Converter voor de Mac
+# Roll Converter
 
-Dezelfde converter als op de website, als eigen Mac-app:
+A Mac app that converts a scanned roll in one go: point it at the roll's folder and every scan in it
+(DNG, TIFF, JPEG or PNG) becomes a positive.
 
-- **⌘O** opent losse scans of een hele map (DNG, TIFF, JPEG, PNG).
-- Exports gaan direct in een exportmap. Die kies je één keer en de app onthoudt hem.
-  Wijzigen kan via **Archief → Exportmap kiezen…** (⇧⌘E).
-- Werkt zonder internet.
+- **16-bit TIFF** with an sRGB profile, for Compositor, Photoshop, Lightroom, Affinity and the like
+- **JPEG**, to view and share
+- optionally a **Compositor project** with Alex Burke's layers, to fine-tune by hand
+- one colour balance for the whole roll, or each frame on its own
+- `(zw)` or `(positief)` in the folder name sets black and white or already-positive scans, as in the scan inbox
 
-De app laadt `converter.html`, `converter-core.js`, `vendor/` en `fonts/` uit de
-hoofdmap van deze repo. Een verbetering aan de converter komt dus vanzelf in de
-app bij de volgende build.
+It runs the same maths as the web converter and the scan inbox (`converter-core.js`,
+`compositor/burke-core.js`), in macOS's own JavaScriptCore: nothing else to install.
 
-## Bouwen
+## Getting the app
 
-Eenmalig:
+**Without Xcode:** every push builds the app on GitHub. Open the repository's **Actions** tab, pick the
+latest **Mac app** run, and download **Roll-Converter** under Artifacts. Unzip it and drag
+`Roll Converter.app` to Applications. The first time, right-click it and choose **Open**: it's signed
+for your own use, not by an Apple developer account.
 
-1. Installeer **Xcode** uit de App Store, open het één keer en accepteer de licentie.
-2. Installeer XcodeGen: `brew install xcodegen`
-
-Daarna, in de map van deze repo:
+**With Xcode** (and `brew install xcodegen`):
 
 ```
 ./mac/build.sh
 ```
 
-De app staat dan in `mac/build/Negatief Converter.app`. Sleep hem naar Programma's.
+The app lands in `mac/build/Roll Converter.app`, with the command-line tool `mac/build/rollconvert`
+next to it.
 
-Hij is ad-hoc ondertekend: hij draait op je eigen Mac zonder Apple-ontwikkelaarsaccount.
-Om hem aan anderen te geven is een account ($99 per jaar) nodig voor notarisatie.
-
-## Werken in Xcode
+## Command line
 
 ```
-cd mac
-xcodegen generate
-open NegConverter.xcodeproj
+mac/build/rollconvert "/Volumes/SSD/Scans/2026-11 Portra 400 roll 12" --compositor
 ```
 
-Druk op Run (⌘R). Het Xcode-project wordt gegenereerd uit `project.yml` en staat
-niet in git; pas `project.yml` aan, niet het project.
+Options: `--out <folder>`, `--film color|bw|positive`, `--no-roll`, `--no-tiff`, `--no-jpeg`,
+`--compositor`. See `rollconvert --help`.
 
-De pagina in de app is te inspecteren met Safari: Ontwikkel → [je Mac] → Negatief Converter
-(zet in Safari eerst Instellingen → Geavanceerd → "Toon functies voor webontwikkelaars" aan).
+## Files
 
-## Bestanden
-
-- `project.yml`: projectbeschrijving voor XcodeGen
-- `Sources/NegConverterApp.swift`: app, venster en menu
-- `Sources/WebController.swift`: laadt de pagina, opent bestanden, bewaart exports
-- `Sources/AppSchemeHandler.swift`: levert de pagina en de geopende scans aan de webview
+| | |
+|---|---|
+| `App/` | the window (SwiftUI) |
+| `Core/Engine.swift` | runs the converter's scripts in JavaScriptCore |
+| `Core/RollJob.swift` | finds a roll's scans and converts them: measure all, then convert each |
+| `Core/ImageFiles.swift` | writes TIFF, JPEG and Compositor projects with ImageIO |
+| `CLI/main.swift` | `rollconvert` |
+| `Engine/engine.js` | the bridge between Swift and the converter's scripts |
+| `Fixtures/` | a test negative and the checks the GitHub build runs |
+| `project.yml` | the Xcode project, for XcodeGen |

@@ -1,0 +1,52 @@
+name: Mac app
+
+# Builds Roll Converter on a Mac, converts a test roll with it, checks the files, and keeps the
+# finished app as a download (Actions › this run › Artifacts › Roll-Converter).
+on:
+  push:
+    paths:
+      - 'mac/**'
+      - 'converter-core.js'
+      - 'compositor/burke-core.js'
+      - 'vendor/**'
+      - '.github/workflows/mac-app.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mac-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build the app and the command-line tool
+        run: |
+          xcodebuild -version
+          ./mac/build.sh
+
+      - name: Convert a test roll
+        run: |
+          ROLL="$RUNNER_TEMP/Test roll"
+          mkdir -p "$ROLL"
+          for i in 1 2 3; do cp mac/Fixtures/negative.dng "$ROLL/scan000$i.dng"; done
+          mac/build/rollconvert "$ROLL" --compositor
+          ls -la "$ROLL/Positief"
+
+      - name: Check the files
+        run: python3 mac/Fixtures/check.py "$RUNNER_TEMP/Test roll"
+
+      - name: Package the app
+        run: ditto -c -k --keepParent "mac/build/Roll Converter.app" Roll-Converter.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Roll-Converter
+          path: Roll-Converter.zip
+          retention-days: 30

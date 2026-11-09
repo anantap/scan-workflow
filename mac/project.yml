@@ -1,47 +1,65 @@
-# XcodeGen-projectbestand. Genereer het Xcode-project met:  xcodegen generate
-name: NegConverter
+# XcodeGen project for Roll Converter. Generate the Xcode project with:  xcodegen generate
+name: RollConverter
 options:
   bundleIdPrefix: nl.ananta
   deploymentTarget:
     macOS: "13.0"
   createIntermediateGroups: true
 
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Ad-hoc signed: runs on your own Mac without an Apple developer account.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+
 targets:
-  NegConverter:
+  RollConverter:
     type: application
     platform: macOS
     scheme: {}
     sources:
-      - path: Sources
-      # De converter zelf: dezelfde bestanden als de website.
-      - path: ../converter.html
+      - path: App
+      - path: Core
+      # The converter's maths: the same scripts as the web converter and the scan inbox.
+      - path: Engine/engine.js
         buildPhase: resources
       - path: ../converter-core.js
         buildPhase: resources
-      - path: ../vendor
-        type: folder
-      - path: ../fonts
-        type: folder
+      - path: ../compositor/burke-core.js
+        buildPhase: resources
+      - path: ../vendor/utif.js
+        buildPhase: resources
+      - path: ../vendor/pako_inflate.min.js
+        buildPhase: resources
     info:
-      path: Info.plist
+      path: App/Info.plist
       properties:
-        CFBundleDisplayName: Negatief Converter
+        CFBundleDisplayName: Roll Converter
+        CFBundleName: Roll Converter
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.photography
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
-        NSHumanReadableCopyright: Voor eigen gebruik.
+        NSHumanReadableCopyright: For personal use.
     settings:
       base:
-        PRODUCT_NAME: Negatief Converter
-        PRODUCT_BUNDLE_IDENTIFIER: nl.ananta.negatiefconverter
-        MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "1"
-        SWIFT_VERSION: "5.0"
-        SWIFT_STRICT_CONCURRENCY: minimal
-        # Ad-hoc ondertekenen: draait op je eigen Mac zonder Apple-ontwikkelaarsaccount.
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "-"
-        DEVELOPMENT_TEAM: ""
-        ENABLE_HARDENED_RUNTIME: NO
-        COMBINE_HIDPI_IMAGES: YES
+        PRODUCT_NAME: Roll Converter
+        PRODUCT_BUNDLE_IDENTIFIER: nl.ananta.rollconverter
+
+  rollconvert:
+    type: tool
+    platform: macOS
+    scheme: {}
+    sources:
+      - path: CLI
+      - path: Core
+    settings:
+      base:
+        PRODUCT_NAME: rollconvert
+        PRODUCT_BUNDLE_IDENTIFIER: nl.ananta.rollconvert
