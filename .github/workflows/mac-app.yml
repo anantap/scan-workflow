@@ -41,6 +41,10 @@ jobs:
           for i in 1 2 3; do cp mac/Fixtures/negative.dng "$ROLL/scan000$i.dng"; done
           mac/build/rollconvert "$ROLL" --compositor
           ls -la "$ROLL/Positief"
+          # Just one scan, picked by itself: only that one is converted
+          mac/build/rollconvert "$ROLL/scan0002.dng" --no-jpeg --out "$RUNNER_TEMP/Single"
+          ls -la "$RUNNER_TEMP/Single"
+          test "$(ls "$RUNNER_TEMP/Single")" = "scan0002.tif"
 
       - name: Check the files
         run: python3 mac/Fixtures/check.py "$RUNNER_TEMP/Test roll"

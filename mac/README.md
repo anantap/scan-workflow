@@ -3,6 +3,9 @@
 A Mac app that converts a scanned roll in one go: point it at the roll's folder and every scan in it
 (DNG, TIFF, JPEG or PNG) becomes a positive.
 
+Or drop just a few scans on it (a rescan, a test frame): only those are converted, into `Positief`
+next to them, with one balance for them together.
+
 - **16-bit TIFF** with an sRGB profile, for Compositor, Photoshop, Lightroom, Affinity and the like
 - **JPEG**, to view and share
 - optionally a **Compositor project** with Alex Burke's layers, to fine-tune by hand
@@ -42,6 +45,7 @@ next to it.
 
 ```
 mac/build/rollconvert "/Volumes/SSD/Scans/2026-11 Portra 400 roll 12" --compositor
+mac/build/rollconvert "/Volumes/SSD/Scans/2026-11 Portra 400 roll 12/scan0007.dng"
 ```
 
 Options: `--out <folder>`, `--film color|bw|positive`, `--no-roll`, `--no-tiff`, `--no-jpeg`,

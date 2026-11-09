@@ -25,7 +25,7 @@ struct RollConverterApp: App {
                 Button("Check for Updates…") { updater.check(userInitiated: true) }
             }
             CommandGroup(replacing: .newItem) {
-                Button("Open Roll…") { model.chooseFolder() }
+                Button("Open…") { model.chooseFolder() }
                     .keyboardShortcut("o")
                     .disabled(model.running)
             }
@@ -59,7 +59,10 @@ struct FrameRow: Identifiable {
 
 @MainActor
 final class RollModel: ObservableObject {
+    /// The roll's folder; for scans picked one by one, the folder they're in.
     @Published var folder: URL?
+    /// Scans picked one by one, or nil for the whole roll in `folder`.
+    @Published var picked: [URL]?
     /// The film stock the folder's name mentions, if any.
     @Published var stock: Roll.Stock?
     @Published var frames: [FrameRow] = []
@@ -74,27 +77,41 @@ final class RollModel: ObservableObject {
 
     func chooseFolder() {
         let panel = NSOpenPanel()
-        panel.canChooseFiles = false
+        panel.canChooseFiles = true
         panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose Roll"
-        panel.message = "Choose the folder with the roll's scans"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        open(url)
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.folder, .tiff, .jpeg, .png] + Roll.extensions.compactMap { UTType(filenameExtension: $0) }
+        panel.prompt = "Choose"
+        panel.message = "Choose a roll's folder, or one or more scans"
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+        open(panel.urls)
     }
 
-    func open(_ url: URL) {
-        guard !running else { return }
+    func open(_ url: URL) { open([url]) }
+
+    /// A folder is a roll: all its scans. Files are just those scans.
+    func open(_ urls: [URL]) {
+        guard !running, let first = urls.first else { return }
         var isFolder: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isFolder) else { return }
-        let roll = isFolder.boolValue ? url : url.deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: first.path, isDirectory: &isFolder) else { return }
+        let roll: URL
+        if urls.count == 1 && isFolder.boolValue {
+            roll = first
+            picked = nil
+            frames = Roll.scans(in: roll).map { FrameRow(url: $0) }
+            error = frames.isEmpty ? "No scans (DNG, TIFF, JPEG or PNG) in this folder." : nil
+        } else {
+            let scans = Roll.sorted(urls.filter(Roll.isScan))
+            roll = (scans.first ?? first).deletingLastPathComponent()
+            picked = scans
+            frames = scans.map { FrameRow(url: $0) }
+            error = scans.isEmpty ? "These aren't scans: drop DNG, TIFF, JPEG or PNG files, or a roll's folder." : nil
+        }
         folder = roll
-        frames = Roll.scans(in: roll).map { FrameRow(url: $0) }
         stock = Roll.stock(forFolder: roll)
         options.film = Roll.film(forFolder: roll) ?? .color
         options.output = nil
         finishedFolder = nil
-        error = frames.isEmpty ? "No scans (DNG, TIFF, JPEG or PNG) in this folder." : nil
     }
 
     func chooseOutput() {
@@ -114,11 +131,12 @@ final class RollModel: ObservableObject {
         error = nil
         for index in frames.indices { frames[index].state = .waiting; frames[index].note = nil }
         let options = self.options
+        let files = frames.map(\.url)
         let scripts = [Bundle.main.resourceURL].compactMap { $0 }
         Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let engine = try Engine(scriptFolders: scripts)
-                let output = try RollConverter(engine: engine).run(folder: folder, options: options) { index, state, note in
+                let output = try RollConverter(engine: engine).run(files: files, folder: folder, options: options) { index, state, note in
                     Task { @MainActor in
                         guard let self, self.frames.indices.contains(index) else { return }
                         self.frames[index].state = state
@@ -145,6 +163,7 @@ final class RollModel: ObservableObject {
     func nextRoll() {
         guard !running else { return }
         folder = nil
+        picked = nil
         stock = nil
         frames = []
         finishedFolder = nil
@@ -195,12 +214,24 @@ struct ContentView: View {
             }
         }
         .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
-            guard !model.running, let provider = providers.first else { return false }
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url else { return }
-                Task { @MainActor in model.open(url) }
+            guard !model.running, !providers.isEmpty else { return false }
+            Task { @MainActor in
+                var urls: [URL] = []
+                for provider in providers {
+                    if let url = await Self.url(from: provider) { urls.append(url) }
+                }
+                model.open(urls)
             }
             return true
+        }
+    }
+}
+
+extension ContentView {
+    /// The file a dropped item stands for.
+    static func url(from provider: NSItemProvider) async -> URL? {
+        await withCheckedContinuation { continuation in
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in continuation.resume(returning: url) }
         }
     }
 }
@@ -316,14 +347,14 @@ struct DropArea: View {
     var body: some View {
         VStack(spacing: 0) {
             FilmIcon(size: 80, targeted: targeted).padding(.bottom, 24)
-            TwoTone(first: targeted ? "Let go to open the roll" : "Drop a roll folder here", second: "or a scan from it")
-            Text("Every scan becomes a positive: a 16-bit TIFF for Compositor, Photoshop and the like, and a JPEG to share.")
+            TwoTone(first: targeted ? "Let go to open them" : "Drop a roll folder here", second: "or just a few scans")
+            Text("A folder converts the whole roll with one colour balance; scans you pick convert on their own. Each becomes a 16-bit TIFF and a JPEG.")
                 .foregroundStyle(p.dim)
                 .lineSpacing(4)
                 .frame(maxWidth: 320)
                 .padding(.top, 14)
                 .padding(.bottom, 26)
-            Button("Choose Roll…") { model.chooseFolder() }
+            Button("Choose…") { model.chooseFolder() }
                 .buttonStyle(.chip(.primary, height: 48))
                 .keyboardShortcut("o")
             Text("DNG, TIFF, JPEG or PNG").font(Theme.s).foregroundStyle(p.faint).padding(.top, 12)
@@ -352,7 +383,7 @@ struct RollCard: View {
         HStack(spacing: 16) {
             FilmIcon(size: 52, targeted: targeted)
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.folder?.lastPathComponent ?? "")
+                Text(title)
                     .font(Theme.font(18))
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -367,9 +398,15 @@ struct RollCard: View {
         .animation(.easeOut(duration: 0.2), value: targeted)
     }
 
+    private var title: String {
+        guard let picked = model.picked else { return model.folder?.lastPathComponent ?? "" }
+        return picked.count == 1 ? picked[0].lastPathComponent : "\(picked.count) scans"
+    }
+
     private var subtitle: String {
         let scans = "\(model.frames.count) scan\(model.frames.count == 1 ? "" : "s")"
-        return model.running ? scans : "\(scans) · drop another roll to switch"
+        let what = model.picked == nil ? scans : "from \(model.folder?.lastPathComponent ?? "")"
+        return model.running ? what : "\(what) · drop others to switch"
     }
 }
 

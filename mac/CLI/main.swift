@@ -4,8 +4,10 @@ import Foundation
 
 let usage = """
 Usage: rollconvert <roll folder> [options]
+       rollconvert <scan> [<scan>…] [options]
 
-Converts every scan (DNG, TIFF, JPEG, PNG) in the folder to a positive.
+Converts every scan (DNG, TIFF, JPEG, PNG) in the folder to a positive, with one colour balance for
+the roll. Given scans, converts just those, into Positief next to them.
 
 Options:
   --out <folder>        where the files go (default: Positief inside the roll)
@@ -26,7 +28,7 @@ func fail(_ message: String) -> Never {
 }
 
 var arguments = Array(CommandLine.arguments.dropFirst())
-var folder: URL?
+var inputs: [URL] = []
 var options = RollOptions()
 var filmGiven = false
 var scriptFolders: [URL] = []
@@ -51,11 +53,16 @@ while !arguments.isEmpty {
     case "--scripts": scriptFolders.append(URL(fileURLWithPath: value(), isDirectory: true))
     default:
         if argument.hasPrefix("-") { fail("unknown option \(argument)\n\n\(usage)") }
-        folder = URL(fileURLWithPath: argument, isDirectory: true)
+        inputs.append(URL(fileURLWithPath: argument))
     }
 }
 
-guard let folder else { print(usage); exit(1) }
+guard let first = inputs.first else { print(usage); exit(1) }
+var isFolder: ObjCBool = false
+guard FileManager.default.fileExists(atPath: first.path, isDirectory: &isFolder) else { fail("\(first.path) doesn't exist") }
+// One folder is a roll; otherwise these scans, from the folder they're in.
+let wholeRoll = inputs.count == 1 && isFolder.boolValue
+let folder = wholeRoll ? first : first.deletingLastPathComponent()
 if !filmGiven, let film = Roll.film(forFolder: folder) { options.film = film }
 guard options.hasOutput else { fail("nothing to write: TIFF and JPEG are off") }
 
@@ -65,11 +72,12 @@ scriptFolders += [executable, URL(fileURLWithPath: FileManager.default.currentDi
 
 do {
     let engine = try Engine(scriptFolders: scriptFolders)
-    let files = Roll.scans(in: folder)
+    let files = wholeRoll ? Roll.scans(in: folder) : Roll.sorted(inputs.filter(Roll.isScan))
+    guard !files.isEmpty else { fail("no scans (DNG, TIFF, JPEG or PNG) to convert") }
     var failed = 0
     let stock = Roll.stock(forFolder: folder).map { " (\($0.name))" } ?? ""
     print("\(files.count) scan\(files.count == 1 ? "" : "s") in \(folder.lastPathComponent), \(options.film.title.lowercased())\(stock)")
-    let output = try RollConverter(engine: engine).run(folder: folder, options: options) { index, state, note in
+    let output = try RollConverter(engine: engine).run(files: files, folder: folder, options: options) { index, state, note in
         let name = files[index].lastPathComponent
         switch state {
         case .done: print("  \(name) ✓")

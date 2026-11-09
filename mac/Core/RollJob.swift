@@ -33,14 +33,22 @@ enum FrameState: Equatable {
 enum Roll {
     static let extensions: Set<String> = ["dng", "tif", "tiff", "jpg", "jpeg", "png"]
 
+    /// Whether a file is a scan this converter reads.
+    static func isScan(_ url: URL) -> Bool {
+        extensions.contains(url.pathExtension.lowercased())
+            && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+    }
+
+    /// Scans in Finder's order.
+    static func sorted(_ files: [URL]) -> [URL] {
+        files.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+
     /// The scans in a roll folder (not in its subfolders), in Finder's order.
     static func scans(in folder: URL) -> [URL] {
         let items = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isRegularFileKey],
                                                                   options: [.skipsHiddenFiles])) ?? []
-        return items
-            .filter { extensions.contains($0.pathExtension.lowercased()) }
-            .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
-            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        return sorted(items.filter(isScan))
     }
 
     /// What the folder's name says about the film. A tag in brackets comes
@@ -124,6 +132,13 @@ final class RollConverter {
     func run(folder: URL, options: RollOptions, progress: (Int, FrameState, String?) -> Void) throws -> URL {
         let files = Roll.scans(in: folder)
         guard !files.isEmpty else { throw Engine.Failure(message: "No scans in \(folder.lastPathComponent)") }
+        return try run(files: files, folder: folder, options: options, progress: progress)
+    }
+
+    /// Converts just these scans, as a roll of their own: with one balance for them together when
+    /// there are several. The files go to `folder`'s output folder (Positief next to the scans).
+    func run(files: [URL], folder: URL, options: RollOptions, progress: (Int, FrameState, String?) -> Void) throws -> URL {
+        guard !files.isEmpty else { throw Engine.Failure(message: "No scans to convert") }
         let output = Roll.outputFolder(for: folder, options: options)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let compositor = options.compositor && options.film == .color
