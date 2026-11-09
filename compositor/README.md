@@ -17,6 +17,31 @@ brew install node
 
 Een recente Compositor: de projecten gebruiken 16-bit lagen (projectformaat 12). De huidige versie (1.6.6) kan dat.
 
+## Alex Burke's methode: `burke2comp.mjs`
+
+Zijn [handmatige inversie](https://www.alexburkephoto.com/blog/2019/10/16/manual-inversion-of-color-negative-film),
+als Compositor-project met al zijn lagen, ingesteld op de scan en allemaal bij te stellen:
+
+| Laag | Wat |
+|---|---|
+| Contrast | Curven: zachte S-curve |
+| Hue/Saturation | neutraal; cyaan naar blauw als de lucht te cyaan is |
+| Witpunt & kleur | Curven: witpunt per kanaal net voor het clippen, zwartpunt, blauw en groen omlaag in schaduw en midden, RGB omlaag |
+| Filmbasis | de kleur van de filmrand, **Subtract** op 80% |
+| Inversie | Curven: zwart en wit omgedraaid |
+| Scan | de scan zoals hij is, 16-bit |
+
+```
+node compositor/burke2comp.mjs --rol ~/Pictures/Scans/rol-12
+```
+
+Opties: `--rol` (één witpunt en kleurbalans voor de hele rol), `--basis 80` (dekking van de filmbasis),
+`--neutraal 75` (lager houdt meer sfeer bij schemer en zonsondergang; Burke trekt groen dan minder ver),
+`--vervang`, `--uit <map>`. Zet de scan zó in de houder dat er wat filmrand in beeld is.
+
+Bij schemer of zonsondergang: open **Witpunt & kleur** en trek in het groene kanaal het witpunt minder ver,
+zoals Burke beschrijft.
+
 ## Makkelijkst: de sleep-app
 
 Eenmalig, in Terminal:

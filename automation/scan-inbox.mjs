@@ -35,6 +35,9 @@ function loadModule(file, deps = {}) {
 const pako = loadModule(path.join(root, 'vendor/pako_inflate.min.js'));
 const UTIF = loadModule(path.join(root, 'vendor/utif.js'), { pako });
 const NC = loadModule(path.join(root, 'converter-core.js'));
+// Alex Burke's lagen als Compositor-project (--burke)
+const burke = await import(path.join(root, 'compositor/burke2comp.mjs'));
+const comp = await import(path.join(root, 'compositor/comp-lib.mjs'));
 
 // ---------- Opties ----------
 
@@ -47,6 +50,8 @@ Opties:
   --zw            zwart-wit negatieven
   --positief      de scans zijn al positief: alleen bijstellen, niet omkeren
   --geen-jpg      alleen de 16-bit TIFF
+  --burke        in plaats van TIFF en JPEG een Compositor-project per scan met
+                  Alex Burke's lagen (inversie, filmbasis, curven), om bij te stellen
   --geen-rol      elk frame op zichzelf laten, geen kleurbalans per rol
   --rust <min>    minuten zonder nieuwe scan voordat de rol klaar heet (standaard 3)
   --stil          geen meldingen
@@ -54,7 +59,7 @@ Opties:
 `;
 
 function parseArgs(argv) {
-  const o = { inbox: null, zw: false, positief: false, jpg: true, rol: true, rust: 3, stil: false };
+  const o = { inbox: null, zw: false, positief: false, jpg: true, rol: true, rust: 3, stil: false, burke: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '-h' || a === '--help') { process.stdout.write(HELP); process.exit(0); }
@@ -62,6 +67,7 @@ function parseArgs(argv) {
     else if (a === '--positief') o.positief = true;
     else if (a === '--geen-jpg') o.jpg = false;
     else if (a === '--geen-rol') o.rol = false;
+    else if (a === '--burke') o.burke = true;
     else if (a === '--stil') o.stil = true;
     else if (a === '--rust') {
       o.rust = Number(argv[++i]);
@@ -71,6 +77,7 @@ function parseArgs(argv) {
     else fail('geef één inbox-map op');
   }
   if (!o.inbox) { process.stdout.write(HELP); process.exit(1); }
+  if (o.burke && (o.zw || o.positief)) fail('--burke is voor kleurnegatieven, niet samen met --zw of --positief');
   return o;
 }
 
@@ -173,6 +180,16 @@ function render(file, an, o, outDir) {
   return [full.w, full.h];
 }
 
+/** Alex Burke's lagen als Compositor-project in `outDir`; `H` is het histogram van de scan of van de rol. */
+const BURKE = { basis: 80, neutraal: 75, rand: 8 };
+function writeBurke(scan, H, outDir) {
+  const p = burke.buildProject(scan, H, BURKE);
+  const dest = path.join(outDir, `${baseName(scan.file)}.comp`);
+  fs.rmSync(dest, { recursive: true, force: true });
+  comp.writeProject(dest, p.w, p.h, p.dpi, p.layers, p.images);
+  return [p.w, p.h];
+}
+
 function notify(o, title, message) {
   if (o.stil) return;
   try {
@@ -212,16 +229,23 @@ async function main() {
   for (;;) {
     // Een scan die niet lukte, pas opnieuw als het bestand veranderd is.
     const failedBefore = (f) => state.failed[path.basename(f)] === fs.statSync(f).size;
-    const pending = scansIn(inbox).filter((f) => !fs.existsSync(path.join(outDir, `${baseName(f)}.tif`)) && !failedBefore(f));
+    const output = (f) => path.join(outDir, `${baseName(f)}.${o.burke ? 'comp' : 'tif'}`);
+    const pending = scansIn(inbox).filter((f) => !fs.existsSync(output(f)) && !failedBefore(f));
     if (!pending.length) break;
     let progressed = false;
     for (const file of pending) {
       if (!(await settled(file))) { log(`${path.basename(file)}: wordt nog geschreven, later opnieuw`); continue; }
       try {
-        const an = analysis(file, o);
-        if (!o.positief && !an.masked) noMask.push(path.basename(file));
-        const size = render(file, NC.analyze(an.hist, an.base), o, outDir);
-        log(`${path.basename(file)} → Positief/${baseName(file)}.tif (${size[0]} × ${size[1]})`);
+        let size;
+        if (o.burke) {
+          const scan = burke.analyzeScan(file, BURKE);
+          size = writeBurke(scan, scan.H, outDir);
+        } else {
+          const an = analysis(file, o);
+          if (!o.positief && !an.masked) noMask.push(path.basename(file));
+          size = render(file, NC.analyze(an.hist, an.base), o, outDir);
+        }
+        log(`${path.basename(file)} → ${path.relative(inbox, output(file))} (${size[0]} × ${size[1]})`);
         // Een scan na een afgeronde rol begint een nieuwe rol.
         if (!state.roll || state.roll.balanced) state.roll = { files: [], balanced: false };
         if (!state.roll.files.includes(path.basename(file))) state.roll.files.push(path.basename(file));
@@ -250,11 +274,20 @@ async function main() {
   if (o.rol && roll && !roll.balanced && roll.files.length > 1 && Date.now() - roll.last >= o.rust * 60000) {
     const files = roll.files.map((f) => path.join(inbox, f)).filter((f) => fs.existsSync(f));
     log(`Rol klaar: ${files.length} frames met één kleurbalans…`);
-    const each = files.map((f) => ({ file: f, ...analysis(f, o) }));
-    const rollHist = NC.mergeHistograms(each.map((e) => e.hist));
-    for (const e of each) {
-      render(e.file, NC.analyze(rollHist, e.base), o, outDir);
-      log(`  ${path.basename(e.file)} opnieuw`);
+    if (o.burke) {
+      const scans = files.map((f) => burke.analyzeScan(f, BURKE));
+      const rollH = burke.mergeHist(scans.map((s) => s.H));
+      for (const scan of scans) {
+        writeBurke(scan, rollH, outDir);
+        log(`  ${path.basename(scan.file)} opnieuw`);
+      }
+    } else {
+      const each = files.map((f) => ({ file: f, ...analysis(f, o) }));
+      const rollHist = NC.mergeHistograms(each.map((e) => e.hist));
+      for (const e of each) {
+        render(e.file, NC.analyze(rollHist, e.base), o, outDir);
+        log(`  ${path.basename(e.file)} opnieuw`);
+      }
     }
     roll.balanced = true;
     writeState(stateFile, state);

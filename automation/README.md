@@ -26,6 +26,9 @@ Eenmalig `brew install node`, dan:
 ~/scan-workflow/automation/install.sh
 ```
 
+Liever in Compositor bijstellen, met Alex Burke's lagen? `install.sh ~/Scans/Inbox --burke`: dan komt er per scan
+een `.comp` in `Positief/` in plaats van TIFF en JPEG (zie `compositor/README.md`).
+
 Andere map of opties: `install.sh ~/Scans/Inbox --zw` (zwart-wit), `--positief` (al positieve scans),
 `--geen-jpg`, `--geen-rol`, `--rust 5` (minuten tot een rol klaar heet).
 
