@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Draws the app icon in the CPC2027 look: the cream mist, the soft orange blob, and a film strip
-across it, the blob showing through its frame. Writes icon-1024.png and the AppIcon set.
+"""Draws the app icon in the CPC2027 look: the cream mist and the soft orange blob. Writes icon-1024.png and the AppIcon set.
 Needs Pillow:  python3 mac/Icon/make_icon.py"""
 import os, sys
-from PIL import Image, ImageDraw, ImageFilter, ImageChops
+from PIL import Image, ImageDraw, ImageFilter
 
 S = 1024
 here = os.path.dirname(os.path.abspath(__file__))
@@ -65,31 +64,6 @@ def shape(box, colours, vertical, opacity, blur):
 
 icon = Image.alpha_composite(icon, shape((270, 200, 790, 690), (hexrgb("#f4733f"), hexrgb("#f39a78"), hexrgb("#e8a9bd")), True, 1, 70))
 icon = Image.alpha_composite(icon, shape((220, 430, 600, 790), (hexrgb("#c4a6d6"), hexrgb("#ef8a62")), False, 0.85, 70))
-
-# A film strip of frosted glass across it, like the CPC cards, its sprocket holes and frame clear.
-strip = Image.new("L", (S, S), 0)
-d = ImageDraw.Draw(strip)
-top, bottom = 330, 694
-d.rounded_rectangle([96, top, S - 96, bottom], radius=36, fill=255)
-d.rounded_rectangle([212, top + 74, S - 212, bottom - 74], radius=30, fill=0)
-hole_w, hole_h, pitch = 38, 30, 70
-x = 132
-while x + hole_w < S - 120:
-    for y in (top + 24, bottom - 24 - hole_h):
-        d.rounded_rectangle([x, y, x + hole_w, y + hole_h], radius=9, fill=0)
-    x += pitch
-strip = strip.rotate(-10, resample=Image.BICUBIC, center=(S / 2, S / 2))
-# A soft shadow under the strip, then the glass: the background blurred and lifted towards white.
-shadow = Image.new("RGBA", (S, S), (60, 55, 40, 0))
-shadow.putalpha(strip.filter(ImageFilter.GaussianBlur(30)).point(lambda v: int(v * 0.16)))
-icon = Image.alpha_composite(icon, ImageChops.offset(shadow, 0, 20))
-glass = icon.filter(ImageFilter.GaussianBlur(30))
-glass = Image.blend(glass, Image.new("RGBA", (S, S), (255, 255, 255, 255)), 0.55)
-icon = Image.composite(glass, icon, strip)
-# A thin bright edge along the glass, as the cards' inset highlight.
-edge = ImageChops.subtract(strip, strip.filter(ImageFilter.MinFilter(5)))
-icon = Image.alpha_composite(icon, Image.merge("RGBA", (*Image.new("RGB", (S, S), (255, 255, 255)).split(),
-                                                         edge.point(lambda v: int(v * 0.7)))))
 
 icon = icon.convert("RGB")
 icon.save(os.path.join(here, "icon-1024.png"))
