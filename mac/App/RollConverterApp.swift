@@ -22,7 +22,7 @@ struct RollConverterApp: App {
         .defaultSize(width: 680, height: 800)
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") { updater.check() }
+                Button("Check for Updates…") { updater.check(userInitiated: true) }
             }
             CommandGroup(replacing: .newItem) {
                 Button("Open Roll…") { model.chooseFolder() }
@@ -208,7 +208,17 @@ struct UpdateCard: View {
     @ObservedObject var updater: Updater
 
     var body: some View {
-        if case .ready(let build) = updater.state {
+        if case .downloading(let build) = updater.state {
+            HStack(spacing: 12) {
+                ProgressView().controlSize(.small)
+                Text("Downloading build \(build)…").font(Theme.s).foregroundStyle(Theme.dim)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .glass()
+            .transition(.move(edge: .top).combined(with: .opacity))
+        } else if case .ready(let build) = updater.state {
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Update").font(Theme.s).foregroundStyle(Theme.accentText)

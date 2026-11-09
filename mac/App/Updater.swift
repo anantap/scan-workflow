@@ -43,23 +43,59 @@ final class Updater: ObservableObject {
         let assets: [Asset]
     }
 
-    func check() {
+    /// Looks for a newer build. Started from the menu (`userInitiated`), it also says when there's
+    /// nothing new or the check failed; in the background it stays quiet.
+    func check(userInitiated: Bool = false) {
         switch state {
-        case .checking, .downloading, .ready: return
+        case .checking, .downloading:
+            return
+        case .ready(let build):
+            if userInitiated { announceReady(build) }
+            return
         default: break
         }
         state = .checking
         Task {
             do {
                 let latest = try await Self.latestRelease()
-                guard let latest, latest.build > currentBuild else { state = .upToDate; return }
+                guard let latest, latest.build > currentBuild else {
+                    state = .upToDate
+                    if userInitiated {
+                        alert("Roll Converter is up to date", "You have build \(currentBuild), the newest there is.")
+                    }
+                    return
+                }
                 state = .downloading(latest.build)
                 staged = try await Self.download(latest.url, build: latest.build)
                 state = .ready(latest.build)
+                if userInitiated { announceReady(latest.build) }
             } catch {
                 state = .failed(error.localizedDescription)
+                if userInitiated {
+                    alert("Couldn't check for updates", error.localizedDescription)
+                }
             }
         }
+    }
+
+    private func announceReady(_ build: Int) {
+        if let problem = installProblem {
+            alert("Build \(build) is ready", problem)
+            return
+        }
+        let panel = NSAlert()
+        panel.messageText = "Build \(build) is ready"
+        panel.informativeText = "You have build \(currentBuild). Restart now to use the new one, or it goes in place when you quit."
+        panel.addButton(withTitle: "Restart Now")
+        panel.addButton(withTitle: "Later")
+        if panel.runModal() == .alertFirstButtonReturn { restartNow() }
+    }
+
+    private func alert(_ title: String, _ text: String) {
+        let panel = NSAlert()
+        panel.messageText = title
+        panel.informativeText = text
+        panel.runModal()
     }
 
     private static func latestRelease() async throws -> (build: Int, url: URL)? {
