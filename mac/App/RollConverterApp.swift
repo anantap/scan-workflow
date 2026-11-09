@@ -230,38 +230,65 @@ struct UpdateCard: View {
 
 // MARK: Start
 
+/// The start screen: a glass file catcher, everything centred, the usual drop pattern.
 struct DropCard: View {
     @ObservedObject var model: RollModel
     let targeted: Bool
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Blob(size: 420).offset(x: 80, y: -60)
-            VStack(alignment: .leading, spacing: 0) {
-                TwoTone(first: "Drop a roll folder here", second: "and every scan becomes a positive.")
-                Spacer()
-                Text("A 16-bit TIFF for Compositor, Photoshop and the like, and a JPEG to share. Black and white and slides too.")
-                    .font(Theme.font(16))
-                    .foregroundStyle(Theme.dim)
-                    .lineSpacing(6)
-                    .frame(maxWidth: 380, alignment: .leading)
+        ZStack {
+            Blob(size: 460)
+                .scaleEffect(targeted ? 1.15 : 1)
+                .offset(y: -40)
+            VStack(spacing: 0) {
+                Image(systemName: targeted ? "film.stack.fill" : "film.stack")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(targeted ? Theme.accentText : Theme.text)
+                    .frame(width: 88, height: 88)
+                    .background(Circle().fill(.white.opacity(0.6)))
                     .padding(.bottom, 24)
+                Text(targeted ? "Let go to open the roll" : "Drop a roll folder here")
+                    .font(Theme.l)
+                    .tracking(-0.36)
+                Text("or a scan from it")
+                    .font(Theme.l)
+                    .tracking(-0.36)
+                    .foregroundStyle(Theme.dim)
+                Text("Every scan becomes a positive: a 16-bit TIFF for Compositor, Photoshop and the like, and a JPEG to share.")
+                    .font(Theme.m)
+                    .foregroundStyle(Theme.dim)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .frame(maxWidth: 360)
+                    .padding(.top, 16)
+                    .padding(.bottom, 28)
                 Button("Choose Roll…") { model.chooseFolder() }
                     .buttonStyle(.chip(.primary, height: 56))
                     .keyboardShortcut("o")
+                Text("DNG, TIFF, JPEG or PNG")
+                    .font(Theme.s)
+                    .foregroundStyle(Theme.faint)
+                    .padding(.top, 12)
                 if let error = model.error {
-                    Text(error).font(Theme.s).foregroundStyle(Theme.error).padding(.top, 12)
+                    Text(error).font(Theme.s).foregroundStyle(Theme.error).padding(.top, 8)
                 }
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .multilineTextAlignment(.center)
+            .padding(32)
         }
-        .glass(.white.opacity(0.35))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .glass(targeted ? Color.white.opacity(0.55) : Color.white.opacity(0.35))
         .overlay(
+            // The catcher's edge: a quiet dashed line that turns orange while something is dragged over.
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Theme.accent.opacity(targeted ? 1 : 0), style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                .strokeBorder(targeted ? Theme.accent : Theme.faint.opacity(0.7),
+                              style: StrokeStyle(lineWidth: targeted ? 2 : 1.5, dash: [8, 6]))
+                .padding(8)
         )
-        .animation(.easeOut(duration: 0.15), value: targeted)
+        .scaleEffect(targeted ? 1.01 : 1)
+        .contentShape(Rectangle())
+        .onTapGesture { model.chooseFolder() }
+        .animation(.easeOut(duration: 0.2), value: targeted)
     }
 }
 
