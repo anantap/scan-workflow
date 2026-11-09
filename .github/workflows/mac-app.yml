@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -70,7 +70,7 @@ jobs:
       - name: Package the app
         run: ditto -c -k --keepParent "mac/build/Roll Converter.app" Roll-Converter.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: Roll-Converter
           path: |
