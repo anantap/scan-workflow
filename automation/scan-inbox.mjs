@@ -203,7 +203,17 @@ function notify(o, title, message) {
 async function main() {
   const o = parseArgs(process.argv.slice(2));
   const inbox = path.resolve(o.inbox.replace(/^~(?=\/|$)/, process.env.HOME || '~'));
+  // Op een externe schijf die niet is aangesloten: niets te doen, en niets te melden.
+  const volume = inbox.match(/^\/Volumes\/[^/]+/);
+  if (volume && !fs.existsSync(volume[0])) return;
   if (!fs.existsSync(inbox) || !fs.statSync(inbox).isDirectory()) fail(`${inbox} is geen map`);
+  try { fs.readdirSync(inbox); } catch (e) {
+    if (e.code === 'EPERM' || e.code === 'EACCES') {
+      fail(`macOS geeft geen toegang tot ${inbox}. Geef node toegang tot de volledige schijf: `
+        + 'Systeeminstellingen > Privacy en beveiliging > Volledige schijftoegang, + , kies ' + process.execPath);
+    }
+    throw e;
+  }
   const outDir = path.join(inbox, 'Positief');
   fs.mkdirSync(outDir, { recursive: true });
   const stateFile = path.join(inbox, '.scan-inbox.json');

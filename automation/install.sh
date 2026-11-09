@@ -24,6 +24,16 @@ if [ $# -gt 0 ] && [ "${1:0:1}" != "-" ]; then INBOX="$1"; shift; fi
 INBOX="${INBOX/#\~/$HOME}"
 case "$INBOX" in /*) ;; *) INBOX="$(pwd)/$INBOX" ;; esac
 
+# Op een externe schijf: die moet nu aangesloten zijn om de map te maken
+case "$INBOX" in
+  /Volumes/*)
+    VOLUME="$(printf '%s' "$INBOX" | cut -d/ -f1-3)"
+    if [ ! -d "$VOLUME" ]; then
+      echo "$VOLUME is niet aangesloten. Sluit de schijf aan en probeer het opnieuw."
+      exit 1
+    fi ;;
+esac
+
 # macOS laat achtergrondtaken niet zonder toestemming in deze mappen
 case "$INBOX" in
   "$HOME/Desktop"*|"$HOME/Documents"*|"$HOME/Downloads"*|"$HOME/Library/Mobile Documents"*)
@@ -91,4 +101,12 @@ echo "  Positief:  $INBOX/Positief"
 echo "  Logboek:   $LOG"
 echo
 echo "Zet in VueScan de uitvoermap op de inbox (zie de tab Omzetten op de site)."
+case "$INBOX" in
+  /Volumes/*)
+    echo
+    echo "Externe schijf: macOS laat een achtergrondtaak daar alleen met toestemming in."
+    echo "Geef node volledige schijftoegang: Systeeminstellingen > Privacy en beveiliging >"
+    echo "Volledige schijftoegang > + > Cmd-Shift-G > plak dit pad > Open:"
+    echo "  $(readlink -f "$NODE" 2>/dev/null || echo "$NODE")" ;;
+esac
 open "$INBOX"
