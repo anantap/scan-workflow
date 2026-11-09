@@ -51,6 +51,7 @@ targets:
       base:
         PRODUCT_NAME: Roll Converter
         PRODUCT_BUNDLE_IDENTIFIER: nl.ananta.rollconverter
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   rollconvert:
     type: tool

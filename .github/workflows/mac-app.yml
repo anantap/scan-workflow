@@ -42,6 +42,13 @@ jobs:
       - name: Check the files
         run: python3 mac/Fixtures/check.py "$RUNNER_TEMP/Test roll"
 
+      - name: Check the app icon
+        run: |
+          APP="mac/build/Roll Converter.app"
+          ls "$APP/Contents/Resources"
+          test -f "$APP/Contents/Resources/AppIcon.icns"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP/Contents/Info.plist"
+
       - name: Package the app
         run: ditto -c -k --keepParent "mac/build/Roll Converter.app" Roll-Converter.zip
 
