@@ -15,7 +15,7 @@
 brew install node
 ```
 
-Een recente Compositor: de projecten gebruiken 16-bit lagen (projectformaat 12). Je huidige versie (1.6.x) kan dat.
+Een recente Compositor: de projecten gebruiken 16-bit lagen (projectformaat 12). De huidige versie (1.6.6) kan dat.
 
 ## Gebruik
 
