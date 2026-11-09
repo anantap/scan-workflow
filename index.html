@@ -607,90 +607,66 @@ for f in *.dng; do magick "$f" -colorspace Gray "bw/${f%.dng}.tif"; done</div>
     <div class="step-body">
       <div class="step-title">Hoe het werkt</div>
       <ul>
-        <li>Geen knop ín Compositor: je sleept een map met scans op de app <strong>Negatieven naar Compositor</strong> in je Dock</li>
-        <li>Die maakt van elke scan een Compositor-project (<code>.comp</code>) met het positief erin</li>
-        <li>Dat project open je in Compositor en daar stel je bij</li>
+        <li>VueScan <strong>scant alleen</strong> en bewaart raw DNG's in een vaste map: de <strong>inbox</strong></li>
+        <li>Een achtergrondtaak op de Mac zet elke nieuwe scan vanzelf om naar een positief in <code>Inbox/Positief</code>: een 16-bit TIFF om te bewerken en een JPEG</li>
+        <li>Komt er een paar minuten niets bij, dan is de rol klaar: alle frames krijgen samen één kleurbalans en je krijgt een melding</li>
       </ul>
-      <div class="note">Eenmalig installeren (stap 02–04), daarna per rol alleen stap 05–07.</div>
+      <div class="note">Eenmalig instellen (stap 02–04), daarna per rol alleen stap 05.</div>
     </div>
   </div>
 
   <div class="step step-setup">
     <div class="step-num">02</div>
     <div class="step-body">
-      <div class="step-title">Node installeren <span class="lock-badge badge-optional">eenmalig</span></div>
+      <div class="step-title">Node en de scripts <span class="lock-badge badge-optional">eenmalig</span></div>
       <ul>
-        <li>Open Terminal en typ:</li>
+        <li>In Terminal:</li>
       </ul>
-      <div class="code-block">brew install node</div>
-      <div class="note">Homebrew nog niet geïnstalleerd? Zie de tab Installatie, stap 01.</div>
+      <div class="code-block">brew install node
+cd ~
+git clone -b claude/deploy-film-scanner-vercel-u9PuX https://github.com/anantap/scan-workflow.git</div>
+      <div class="note">Staat de map <code>scan-workflow</code> er al? Haal dan de nieuwste versie op met <code>git -C ~/scan-workflow pull</code>.</div>
     </div>
   </div>
 
   <div class="step step-setup">
     <div class="step-num">03</div>
     <div class="step-body">
-      <div class="step-title">Scripts downloaden <span class="lock-badge badge-optional">eenmalig</span></div>
-      <ul>
-        <li>In Terminal (dit zet een map <code>scan-workflow</code> in je thuismap):</li>
+      <div class="step-title">Automatisch omzetten aanzetten <span class="lock-badge badge-optional">eenmalig</span></div>
+      <div class="code-block">~/scan-workflow/automation/install.sh</div>
+      <ul style="margin-top: 14px;">
+        <li>Dit maakt de map <code>~/Scans/Inbox</code> en zet de achtergrondtaak aan; hij blijft aan na een herstart</li>
+        <li>Zwart-wit negatieven: <code>install.sh ~/Scans/Inbox --zw</code></li>
+        <li>Uitzetten: <code>install.sh --verwijder</code></li>
       </ul>
-      <div class="code-block">cd ~
-git clone -b claude/deploy-film-scanner-vercel-u9PuX https://github.com/anantap/scan-workflow.git</div>
-      <div class="note">Laat deze map staan: de app gebruikt de scripts erin.</div>
     </div>
   </div>
 
   <div class="step step-setup">
     <div class="step-num">04</div>
     <div class="step-body">
-      <div class="step-title">De app maken <span class="lock-badge badge-optional">eenmalig</span></div>
+      <div class="step-title">VueScan: alleen scannen <span class="lock-badge badge-optional">eenmalig</span></div>
       <ul>
-        <li>In Terminal:</li>
+        <li><strong>Output → Default folder</strong> → <code>~/Scans/Inbox</code></li>
+        <li><strong>Raw file</strong> → aan, <strong>Raw file type</strong> → DNG</li>
+        <li><strong>JPEG file</strong> en <strong>TIFF file</strong> → uit: VueScan hoeft niets meer om te zetten</li>
+        <li><strong>Filter tab</strong> → Grain reduction en Restore fading uit</li>
       </ul>
-      <div class="code-block">~/scan-workflow/compositor/install-droplet.sh</div>
-      <ul style="margin-top: 14px;">
-        <li>Er opent een Finder-venster met <strong>Negatieven naar Compositor</strong></li>
-        <li>Sleep die naar je <strong>Dock</strong></li>
-      </ul>
+      <div class="note">Hoe minder VueScan zelf bewerkt, hoe sneller hij klaar is per frame.</div>
     </div>
   </div>
 
   <div class="step step-setup">
     <div class="step-num">05</div>
     <div class="step-body">
-      <div class="step-title">Scannen</div>
+      <div class="step-title">Per rol</div>
       <ul>
-        <li>Scan zoals in de tab Kleur, met <strong>Raw file → DNG</strong> aan</li>
-        <li>Zet de DNG's van één rol samen in één map</li>
+        <li>Scan de rol zoals altijd</li>
+        <li>Open <code>~/Scans/Inbox/Positief</code>: de foto's verschijnen terwijl je scant</li>
+        <li>Na de laatste scan en een paar minuten rust: melding <strong>Rol klaar</strong></li>
+        <li>Verplaats daarna de DNG's en de map Positief naar je archief, zodat de inbox leeg is voor de volgende rol</li>
       </ul>
-      <div class="note">Gebruik de DNG's, niet de JPEGs: die heeft VueScan al omgezet.</div>
-    </div>
-  </div>
-
-  <div class="step step-setup">
-    <div class="step-num">06</div>
-    <div class="step-body">
-      <div class="step-title">Omzetten</div>
-      <ul>
-        <li>Sleep de <strong>map</strong> met DNG's op het icoon in je Dock</li>
-        <li>Kies <strong>Kleurnegatief</strong>, <strong>Zwart-wit negatief</strong> of <strong>Al positief</strong></li>
-        <li>Wacht tot de map opengaat: naast elke scan staat nu een <code>.comp</code>-bestand</li>
-      </ul>
-      <div class="note">De hele rol krijgt dezelfde kleurbalans, net als Lock Exposure in VueScan. De eerste keer vraagt macOS misschien om toestemming voor de map: klik op Sta toe.</div>
-    </div>
-  </div>
-
-  <div class="step step-setup">
-    <div class="step-num">07</div>
-    <div class="step-body">
-      <div class="step-title">Bijstellen in Compositor</div>
-      <ul>
-        <li>Dubbelklik een <code>.comp</code>-bestand</li>
-        <li>De laag <strong>Positief</strong> is je foto. Daarboven staan drie lagen die nog niets doen: <strong>Niveaus</strong>, <strong>Curven</strong> en <strong>Kleurbalans</strong></li>
-        <li>Selecteer zo'n laag om bij te stellen: helderheid en contrast met Niveaus of Curven, een kleurzweem met Kleurbalans</li>
-        <li>Exporteer zoals je gewend bent in Compositor</li>
-      </ul>
-      <div class="note">Ziet een frame er heel verkeerd uit (bijvoorbeeld als een negatief)? Sleep het opnieuw op het icoon en kies een ander soort. Het nieuwe project heet dan <code>naam 2.comp</code>.</div>
+      <div class="note">Een frame opnieuw laten omzetten? Gooi zijn TIFF in Positief weg. Iets mis? Kijk in <code>~/Library/Logs/scan-inbox.log</code>.</div>
     </div>
   </div>
 
