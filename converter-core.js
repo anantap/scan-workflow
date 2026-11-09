@@ -109,7 +109,10 @@
         out[p * 3 + c] = v < 0 ? 0 : v > MAXV ? MAXV : v;
       }
     }
-    return { w, h, data: out };
+    // Scanresolutie (pixels per inch), als het bestand die noemt
+    const xres = img.t282 ? Number(img.t282[0]) : NaN;
+    const dpi = isFinite(xres) && xres >= 1 && xres <= 9600 ? Math.round(xres) : null;
+    return { w, h, data: out, dpi };
   };
 
   /** Box-verkleining tot de lange zijde ≤ maxEdge */
