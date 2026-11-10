@@ -352,21 +352,6 @@ struct FilesColumn: View {
     }
 }
 
-/// The dashed edge of the drop area: quiet, in the accent colour while something is dragged over it.
-struct DropEdge: View {
-    @Environment(\.palette) private var p
-    let targeted: Bool
-    var radius: CGFloat = 18
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .strokeBorder(targeted ? p.accent : p.faint.opacity(0.7),
-                          style: StrokeStyle(lineWidth: targeted ? 2 : 1.5, dash: [8, 6]))
-            .padding(8)
-            .allowsHitTesting(false)
-    }
-}
-
 struct FilmIcon: View {
     @Environment(\.palette) private var p
     let size: CGFloat
@@ -409,7 +394,7 @@ struct DropArea: View {
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glass(paper: targeted ? 0.55 : 0.35)
-        .overlay(DropEdge(targeted: targeted))
+        .scaleEffect(targeted ? 1.01 : 1)
         .contentShape(Rectangle())
         .onTapGesture { model.chooseFolder() }
         .animation(.easeOut(duration: 0.2), value: targeted)
@@ -437,7 +422,7 @@ struct RollCard: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 22)
         .glass(paper: targeted ? 0.55 : 0.35)
-        .overlay(DropEdge(targeted: targeted))
+        .scaleEffect(targeted ? 1.01 : 1)
         .animation(.easeOut(duration: 0.2), value: targeted)
     }
 
